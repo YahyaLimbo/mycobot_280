@@ -7,6 +7,13 @@
 <sdf version="1.6">
   <world name="calibration_world">
 
+    <!-- Physics step size matches controller update rate (100 Hz) -->
+    <physics name="default_physics" default="0" type="ode">
+      <max_step_size>0.01</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+      <real_time_update_rate>100</real_time_update_rate>
+    </physics>
+
     <!-- Plugin for simulating physics -->
     <plugin
       filename="ignition-gazebo-physics-system"
@@ -84,23 +91,30 @@
     </model>
 
     <!-- Calibration Table -->
+    <!-- Full-spec table per supervisor's documentation:
+           - 1.0 m x 0.8 m top surface
+           - 0.4 m height (top surface center at z=0.4)
+           - Four cylindrical legs (radius 0.03 m, length 0.4 m) at the corners
+         Implemented as a SINGLE static link with multiple <collision>/<visual>
+         children (no internal joints) — this avoids the DART
+         RevoluteJoint::verifyTransform crash that occurred with multi-link
+         static models in Ignition Fortress + dartsim 6.12. -->
     <model name="calibration_table">
       <static>true</static>
       <pose>0 0 0 0 0 0</pose>
-      <link name="table_top">
-        <pose>0 0 0.4 0 0 0</pose>
-        <collision name="collision">
+      <link name="table">
+
+        <!-- Top slab -->
+        <collision name="top_collision">
+          <pose>0 0 0.4 0 0 0</pose>
           <geometry>
-            <box>
-              <size>1.0 0.8 0.05</size>
-            </box>
+            <box><size>1.0 0.8 0.05</size></box>
           </geometry>
         </collision>
-        <visual name="visual">
+        <visual name="top_visual">
+          <pose>0 0 0.4 0 0 0</pose>
           <geometry>
-            <box>
-              <size>1.0 0.8 0.05</size>
-            </box>
+            <box><size>1.0 0.8 0.05</size></box>
           </geometry>
           <material>
             <ambient>0.6 0.4 0.2 1</ambient>
@@ -108,116 +122,80 @@
             <specular>0.2 0.2 0.2 1</specular>
           </material>
         </visual>
-      </link>
-      <!-- Table legs -->
-      <link name="leg1">
-        <pose>0.4 0.3 0.2 0 0 0</pose>
-        <collision name="collision">
+
+        <!-- Leg 1: +X +Y corner -->
+        <collision name="leg1_collision">
+          <pose>0.45 0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
         </collision>
-        <visual name="visual">
+        <visual name="leg1_visual">
+          <pose>0.45 0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
           <material>
             <ambient>0.3 0.3 0.3 1</ambient>
             <diffuse>0.3 0.3 0.3 1</diffuse>
           </material>
         </visual>
-      </link>
-      <link name="leg2">
-        <pose>-0.4 0.3 0.2 0 0 0</pose>
-        <collision name="collision">
+
+        <!-- Leg 2: -X +Y corner -->
+        <collision name="leg2_collision">
+          <pose>-0.45 0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
         </collision>
-        <visual name="visual">
+        <visual name="leg2_visual">
+          <pose>-0.45 0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
           <material>
             <ambient>0.3 0.3 0.3 1</ambient>
             <diffuse>0.3 0.3 0.3 1</diffuse>
           </material>
         </visual>
-      </link>
-      <link name="leg3">
-        <pose>0.4 -0.3 0.2 0 0 0</pose>
-        <collision name="collision">
+
+        <!-- Leg 3: +X -Y corner -->
+        <collision name="leg3_collision">
+          <pose>0.45 -0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
         </collision>
-        <visual name="visual">
+        <visual name="leg3_visual">
+          <pose>0.45 -0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
           <material>
             <ambient>0.3 0.3 0.3 1</ambient>
             <diffuse>0.3 0.3 0.3 1</diffuse>
           </material>
         </visual>
-      </link>
-      <link name="leg4">
-        <pose>-0.4 -0.3 0.2 0 0 0</pose>
-        <collision name="collision">
+
+        <!-- Leg 4: -X -Y corner -->
+        <collision name="leg4_collision">
+          <pose>-0.45 -0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
         </collision>
-        <visual name="visual">
+        <visual name="leg4_visual">
+          <pose>-0.45 -0.35 0.175 0 0 0</pose>
           <geometry>
-            <cylinder>
-              <radius>0.03</radius>
-              <length>0.4</length>
-            </cylinder>
+            <cylinder><radius>0.03</radius><length>0.35</length></cylinder>
           </geometry>
           <material>
             <ambient>0.3 0.3 0.3 1</ambient>
             <diffuse>0.3 0.3 0.3 1</diffuse>
           </material>
         </visual>
+
       </link>
-      <joint name="leg1_joint" type="fixed">
-        <parent>table_top</parent>
-        <child>leg1</child>
-      </joint>
-      <joint name="leg2_joint" type="fixed">
-        <parent>table_top</parent>
-        <child>leg2</child>
-      </joint>
-      <joint name="leg3_joint" type="fixed">
-        <parent>table_top</parent>
-        <child>leg3</child>
-      </joint>
-      <joint name="leg4_joint" type="fixed">
-        <parent>table_top</parent>
-        <child>leg4</child>
-      </joint>
     </model>
 
     <!-- Scene properties -->

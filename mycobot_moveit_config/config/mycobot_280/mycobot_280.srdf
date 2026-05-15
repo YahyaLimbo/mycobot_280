@@ -66,4 +66,51 @@
 
     <disable_collisions link1="link6" link2="link6_flange" reason="Adjacent"/>
 
+    <!-- Gripper: link6_flange to gripper_base (fixed joint, adjacent) -->
+    <disable_collisions link1="link6_flange" link2="gripper_base" reason="Adjacent"/>
+
+    <!-- Gripper: gripper_base to immediate children (revolute joints, adjacent) -->
+    <disable_collisions link1="gripper_base" link2="gripper_left3" reason="Adjacent"/>
+    <disable_collisions link1="gripper_base" link2="gripper_left2" reason="Adjacent"/>
+    <disable_collisions link1="gripper_base" link2="gripper_right3" reason="Adjacent"/>
+    <disable_collisions link1="gripper_base" link2="gripper_right2" reason="Adjacent"/>
+
+    <!-- Gripper: finger tip joints (adjacent) -->
+    <disable_collisions link1="gripper_left3" link2="gripper_left1" reason="Adjacent"/>
+    <disable_collisions link1="gripper_right3" link2="gripper_right1" reason="Adjacent"/>
+
+    <!-- Gripper: arm links vs gripper (never collide by design) -->
+    <disable_collisions link1="link6" link2="gripper_base" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_left1" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_left2" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_left3" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_right1" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_right2" reason="Never"/>
+    <disable_collisions link1="link6" link2="gripper_right3" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_left1" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_left2" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_left3" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_right1" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_right2" reason="Never"/>
+    <disable_collisions link1="link6_flange" link2="gripper_right3" reason="Never"/>
+
+    <!-- Gripper: grandparent-grandchild pairs (never) -->
+    <disable_collisions link1="gripper_base" link2="gripper_left1" reason="Never"/>
+    <disable_collisions link1="gripper_base" link2="gripper_right1" reason="Never"/>
+
+    <!-- Gripper: sibling finger links (never) -->
+    <disable_collisions link1="gripper_left2" link2="gripper_left3" reason="Never"/>
+    <disable_collisions link1="gripper_right2" link2="gripper_right3" reason="Never"/>
+
+    <!-- Gripper: all left finger links vs all right finger links (never) -->
+    <disable_collisions link1="gripper_left1" link2="gripper_right1" reason="Never"/>
+    <disable_collisions link1="gripper_left1" link2="gripper_right2" reason="Never"/>
+    <disable_collisions link1="gripper_left1" link2="gripper_right3" reason="Never"/>
+    <disable_collisions link1="gripper_left2" link2="gripper_right1" reason="Never"/>
+    <disable_collisions link1="gripper_left2" link2="gripper_right2" reason="Never"/>
+    <disable_collisions link1="gripper_left2" link2="gripper_right3" reason="Never"/>
+    <disable_collisions link1="gripper_left3" link2="gripper_right1" reason="Never"/>
+    <disable_collisions link1="gripper_left3" link2="gripper_right2" reason="Never"/>
+    <disable_collisions link1="gripper_left3" link2="gripper_right3" reason="Never"/>
+
 </robot>

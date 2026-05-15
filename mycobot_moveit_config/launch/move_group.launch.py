@@ -113,6 +113,13 @@ def generate_launch_description():
         # MoveIt capabilities
         move_group_capabilities = {"capabilities": "move_group/ExecuteTaskSolutionCapability"}
 
+        # Trajectory execution parameters — raise start tolerance to handle
+        # Gazebo joint drift between executions (default 0.01 causes frequent aborts)
+        trajectory_execution_params = {
+            'trajectory_execution.allowed_start_tolerance': 0.2,
+            'trajectory_execution.execution_duration_monitoring': False,
+        }
+
         # Create move_group node
         start_move_group_node_cmd = Node(
             package="moveit_ros_move_group",
@@ -123,6 +130,7 @@ def generate_launch_description():
                 {'use_sim_time': use_sim_time},
                 {'start_state': {'content': initial_positions_file_path}},
                 move_group_capabilities,
+                trajectory_execution_params,
             ],
         )
 

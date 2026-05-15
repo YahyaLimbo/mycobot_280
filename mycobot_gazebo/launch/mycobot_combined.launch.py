@@ -23,6 +23,7 @@ Usage examples:
 """
 
 import os
+import subprocess
 from launch import LaunchDescription
 from launch.actions import (
     DeclareLaunchArgument,
@@ -155,10 +156,36 @@ def generate_launch_description():
         robot_name_str = LaunchConfiguration('robot_name').perform(context)
         use_sim_str = LaunchConfiguration('use_sim').perform(context)
         use_rviz_str = LaunchConfiguration('use_rviz').perform(context)
+        use_gripper_str = LaunchConfiguration('use_gripper').perform(context)
         use_sim_bool = use_sim_str.lower() == 'true'
 
         pkg_share_moveit = FindPackageShare(pkg_moveit).find(pkg_moveit)
+        pkg_share_desc = FindPackageShare(pkg_description).find(pkg_description)
         config_path = os.path.join(pkg_share_moveit, 'config', robot_name_str)
+        urdf_xacro_path = os.path.join(
+            pkg_share_desc, 'urdf', 'robots', f'{robot_name_str}.urdf.xacro'
+        )
+
+        # Run xacro directly (same way RSP does) so MoveIt's model always
+        # matches what Gazebo loaded — including the gripper when use_gripper:=true.
+        xacro_result = subprocess.run(
+            [
+                'xacro', urdf_xacro_path,
+                f'robot_name:={robot_name_str}',
+                f'use_gripper:={use_gripper_str}',
+                f'use_gazebo:={use_sim_str}',
+                'prefix:=',
+                'add_world:=true',
+                'base_link:=base_link',
+                'base_type:=g_shape',
+                'flange_link:=link6_flange',
+                'gripper_type:=adaptive_gripper',
+                'use_camera:=false',
+            ],
+            capture_output=True,
+            text=True,
+        )
+        robot_description_content = xacro_result.stdout
 
         moveit_config = (
             MoveItConfigsBuilder(robot_name_str, package_name=pkg_moveit)
@@ -184,15 +211,26 @@ def generate_launch_description():
             .to_moveit_configs()
         )
 
+        # Raise start tolerance to handle Gazebo joint drift between executions
+        trajectory_execution_params = {
+            'trajectory_execution.allowed_start_tolerance': 0.2,
+            'trajectory_execution.execution_duration_monitoring': False,
+        }
+
+        # robot_description override placed AFTER moveit_config.to_dict() so it wins
+        robot_description_override = {'robot_description': robot_description_content}
+
         move_group_node = Node(
             package='moveit_ros_move_group',
             executable='move_group',
             output='screen',
             parameters=[
                 moveit_config.to_dict(),
+                robot_description_override,
                 {'use_sim_time': use_sim_bool},
                 {'start_state': {
                     'content': os.path.join(config_path, 'initial_positions.yaml')}},
+                trajectory_execution_params,
             ],
         )
 
@@ -207,7 +245,7 @@ def generate_launch_description():
                     '-d', os.path.join(pkg_share_moveit, 'rviz', 'move_group.rviz'),
                 ],
                 parameters=[
-                    moveit_config.robot_description,
+                    robot_description_override,
                     moveit_config.robot_description_semantic,
                     moveit_config.planning_pipelines,
                     moveit_config.robot_description_kinematics,
@@ -236,6 +274,29 @@ def generate_launch_description():
     # ---------------------------------------------------------------------------
     # Simulation-only block (use_sim:=true)
     # ---------------------------------------------------------------------------
+
+    # Pre-launch cleanup: kill any stale ign-gazebo / bridge processes left
+    # over from a previous run that crashed before OnShutdown could fire.
+    # Without this, the still-running gazebo server accepts the new spawn
+    # request and silently auto-renames the duplicate to mycobot_280_0,
+    # mycobot_280_1, etc.
+    def _prelaunch_cleanup(context):
+        use_sim_str = LaunchConfiguration('use_sim').perform(context)
+        if use_sim_str.lower() != 'true':
+            return []
+        import subprocess
+        for pat in (
+            'parameter_bridge',
+            'image_bridge',
+            'ign gazebo',
+            'ign-gazebo-server',
+            'ign-gazebo-gui',
+            'ruby.*ign',
+        ):
+            subprocess.run(['pkill', '-9', '-f', pat], capture_output=True)
+        return []
+
+    prelaunch_cleanup = OpaqueFunction(function=_prelaunch_cleanup)
 
     set_ign_resource_path = SetEnvironmentVariable(
         name='IGN_GAZEBO_RESOURCE_PATH',
@@ -295,20 +356,37 @@ def generate_launch_description():
         condition=IfCondition(use_sim),
     )
 
-    # Robot spawner
-    robot_spawner = Node(
-        package='ros_ign_gazebo',
-        executable='create',
-        output='screen',
-        arguments=[
-            '-topic', '/robot_description',
-            '-name', robot_name,
-            '-allow_renaming', 'true',
-            '-x', x, '-y', y, '-z', z,
-            '-R', roll, '-P', pitch, '-Y', yaw,
-        ],
-        condition=IfCondition(use_sim),
-    )
+    # Robot spawner — wrapped in OpaqueFunction so we can auto-raise z to
+    # 0.425 (on top of the calibration table) when world_file:=calibration.world
+    # is selected and the user did not override z explicitly.
+    def make_robot_spawner(context):
+        use_sim_str = LaunchConfiguration('use_sim').perform(context)
+        if use_sim_str.lower() != 'true':
+            return []
+        z_str = LaunchConfiguration('z').perform(context)
+        world_str = LaunchConfiguration('world_file').perform(context)
+        # If user kept the default z (0.05) and selected calibration.world,
+        # raise the robot to sit on the 0.4 m-high table top.
+        if world_str == 'calibration.world' and z_str == '0.05':
+            z_str = '0.425'
+        return [Node(
+            package='ros_ign_gazebo',
+            executable='create',
+            output='screen',
+            arguments=[
+                '-topic', '/robot_description',
+                '-name', LaunchConfiguration('robot_name').perform(context),
+                '-allow_renaming', 'true',
+                '-x', LaunchConfiguration('x').perform(context),
+                '-y', LaunchConfiguration('y').perform(context),
+                '-z', z_str,
+                '-R', LaunchConfiguration('roll').perform(context),
+                '-P', LaunchConfiguration('pitch').perform(context),
+                '-Y', LaunchConfiguration('yaw').perform(context),
+            ],
+        )]
+
+    robot_spawner = OpaqueFunction(function=make_robot_spawner)
 
     # ---------------------------------------------------------------------------
     # Hardware stub (use_sim:=false)
@@ -350,6 +428,7 @@ def generate_launch_description():
     ld.add_action(rsp_launch)
 
     # Simulation path
+    ld.add_action(prelaunch_cleanup)
     ld.add_action(set_ign_resource_path)
     ld.add_action(load_controllers_launch)
     ld.add_action(gazebo_server)
@@ -371,9 +450,21 @@ def generate_launch_description():
     # ---------------------------------------------------------------------------
     def kill_bridges(event, context):
         import subprocess
-        subprocess.run(['pkill', '-9', '-f', 'parameter_bridge'], capture_output=True)
-        subprocess.run(['pkill', '-9', '-f', 'image_bridge'], capture_output=True)
-        subprocess.run(['pkill', '-9', '-f', 'ign_gazebo'], capture_output=True)
+        # Ignition Fortress runs the server via a Ruby wrapper: the actual
+        # process command line is "ruby /usr/bin/ign gazebo ..." plus the
+        # spawned "ign-gazebo-server" and "ign-gazebo-gui" binaries.  The old
+        # pattern 'ign_gazebo' (underscore) matched none of them, so the
+        # server kept running between launches and accumulated duplicate
+        # robot spawns (mycobot_280, mycobot_280_0, mycobot_280_1, ...).
+        for pat in (
+            'parameter_bridge',
+            'image_bridge',
+            'ign gazebo',
+            'ign-gazebo-server',
+            'ign-gazebo-gui',
+            'ruby.*ign',
+        ):
+            subprocess.run(['pkill', '-9', '-f', pat], capture_output=True)
         return []
 
     cleanup_bridges = RegisterEventHandler(
