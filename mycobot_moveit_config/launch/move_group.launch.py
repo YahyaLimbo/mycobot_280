@@ -93,6 +93,7 @@ def generate_launch_description():
         # Create MoveIt configuration
         moveit_config = (
             MoveItConfigsBuilder(robot_name_str, package_name=package_name_moveit_config)
+            .robot_description(mappings={'use_gripper': 'true'})
             .trajectory_execution(file_path=moveit_controllers_file_path)
             .robot_description_semantic(file_path=srdf_model_path)
             .joint_limits(file_path=joint_limits_file_path)

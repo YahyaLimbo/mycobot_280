@@ -92,7 +92,7 @@ def generate_launch_description():
 
     declare_use_gripper = DeclareLaunchArgument(
         name='use_gripper',
-        default_value='false',
+        default_value='true',
         description='Include gripper in robot model.')
 
     declare_use_camera = DeclareLaunchArgument(
@@ -189,6 +189,7 @@ def generate_launch_description():
 
         moveit_config = (
             MoveItConfigsBuilder(robot_name_str, package_name=pkg_moveit)
+            .robot_description(mappings={'use_gripper': 'true'})
             .trajectory_execution(
                 file_path=os.path.join(config_path, 'moveit_controllers.yaml'))
             .robot_description_semantic(

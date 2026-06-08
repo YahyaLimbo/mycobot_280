@@ -9,7 +9,7 @@
     <xacro:arg name="prefix" default=""/>
     <xacro:arg name="use_camera" default="false"/>
     <xacro:arg name="use_gazebo" default="false"/>
-    <xacro:arg name="use_gripper" default="false"/>
+    <xacro:arg name="use_gripper" default="true"/>
 
     <xacro:if value="$(arg add_world)">
       <link name="world"/>
@@ -36,17 +36,12 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </xacro:mycobot_280_arm>
 
-    <xacro:if value="$(arg use_gripper)">
-        <xacro:property name="current_gripper" value="$(arg gripper_type)"/>
-        <xacro:if value="${current_gripper == 'adaptive_gripper'}">
-            <xacro:include filename="$(find mycobot_description)/urdf/mech/adaptive_gripper.urdf.xacro"/>
-            <xacro:adaptive_gripper
-                parent="$(arg flange_link)"
-                prefix="$(arg prefix)">
-                <origin xyz="0 0 0.034" rpy="1.579 0 0"/>
-            </xacro:adaptive_gripper>
-        </xacro:if>
-    </xacro:if>
+    <xacro:include filename="$(find mycobot_description)/urdf/mech/adaptive_gripper.urdf.xacro"/>
+    <xacro:adaptive_gripper
+        parent="$(arg flange_link)"
+        prefix="$(arg prefix)">
+        <origin xyz="0 0 0.034" rpy="1.579 0 0"/>
+    </xacro:adaptive_gripper>
 
     <xacro:include filename="$(find mycobot_description)/urdf/control/gazebo_sim_ros2_control.urdf.xacro" />
     <xacro:load_gazebo_sim_ros2_control_plugin

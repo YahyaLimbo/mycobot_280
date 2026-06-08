@@ -218,5 +218,36 @@
       </visual>
     </gazebo>
 
+    <!-- Dummy joints to satisfy MoveIt2 errors from gazebo_ros2_control appending _mimic -->
+    <link name="${prefix}dummy_mimic_link1"/>
+    <joint name="${prefix}gripper_base_to_${prefix}gripper_left2_mimic" type="fixed">
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}dummy_mimic_link1"/>
+    </joint>
+
+    <link name="${prefix}dummy_mimic_link2"/>
+    <joint name="${prefix}gripper_left3_to_${prefix}gripper_left1_mimic" type="fixed">
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}dummy_mimic_link2"/>
+    </joint>
+
+    <link name="${prefix}dummy_mimic_link3"/>
+    <joint name="${prefix}gripper_base_to_${prefix}gripper_right3_mimic" type="fixed">
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}dummy_mimic_link3"/>
+    </joint>
+
+    <link name="${prefix}dummy_mimic_link4"/>
+    <joint name="${prefix}gripper_base_to_${prefix}gripper_right2_mimic" type="fixed">
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}dummy_mimic_link4"/>
+    </joint>
+
+    <link name="${prefix}dummy_mimic_link5"/>
+    <joint name="${prefix}gripper_right3_to_${prefix}gripper_right1_mimic" type="fixed">
+      <parent link="${prefix}gripper_base"/>
+      <child link="${prefix}dummy_mimic_link5"/>
+    </joint>
+
   </xacro:macro>
 </robot>

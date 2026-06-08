@@ -86,7 +86,7 @@ ARGUMENTS = [
     DeclareLaunchArgument('use_gazebo', default_value='false',
                           choices=['true', 'false'],
                           description='Whether to use Gazebo simulation'),
-    DeclareLaunchArgument('use_gripper', default_value='false',
+    DeclareLaunchArgument('use_gripper', default_value='true',
                           choices=['true', 'false'],
                           description='Whether to attach a gripper')
 ]
