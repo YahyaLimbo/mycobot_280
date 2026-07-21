@@ -1,0 +1,6 @@
+build/
+install/
+log/
+.gemini/
+*.pyc
+__pycache__/

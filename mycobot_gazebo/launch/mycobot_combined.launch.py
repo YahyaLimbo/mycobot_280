@@ -189,7 +189,7 @@ def generate_launch_description():
 
         moveit_config = (
             MoveItConfigsBuilder(robot_name_str, package_name=pkg_moveit)
-            .robot_description(mappings={'use_gripper': 'true'})
+            .robot_description(mappings={'use_gripper': use_gripper_str})
             .trajectory_execution(
                 file_path=os.path.join(config_path, 'moveit_controllers.yaml'))
             .robot_description_semantic(
@@ -214,7 +214,7 @@ def generate_launch_description():
 
         # Raise start tolerance to handle Gazebo joint drift between executions
         trajectory_execution_params = {
-            'trajectory_execution.allowed_start_tolerance': 0.2,
+            'trajectory_execution.allowed_start_tolerance': 0.5,
             'trajectory_execution.execution_duration_monitoring': False,
         }
 
@@ -256,6 +256,34 @@ def generate_launch_description():
             )
             _rviz_node_holder.append(rviz_node)
             actions.append(rviz_node)
+
+        if not use_sim_bool:
+            controllers_yaml_path = os.path.join(
+                pkg_share_moveit, 'config', robot_name_str, 'ros2_controllers_hardware.yaml'
+            )
+            control_node = Node(
+                package='controller_manager',
+                executable='ros2_control_node',
+                parameters=[
+                    {'robot_description': robot_description_content},
+                    controllers_yaml_path
+                ],
+                output='both',
+            )
+            
+            spawn_joint_state_broadcaster = Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=['joint_state_broadcaster', '--controller-manager', '/controller_manager'],
+                output='screen',
+            )
+            spawn_arm_controller = Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=['arm_controller', '--controller-manager', '/controller_manager'],
+                output='screen',
+            )
+            actions.extend([control_node, spawn_joint_state_broadcaster, spawn_arm_controller])
 
         return actions
 
@@ -390,14 +418,11 @@ def generate_launch_description():
     robot_spawner = OpaqueFunction(function=make_robot_spawner)
 
     # ---------------------------------------------------------------------------
-    # Hardware stub (use_sim:=false)
+    # Hardware path (use_sim:=false)
     # ---------------------------------------------------------------------------
-    # TODO: Replace this block with the hardware driver launch when available.
-    #       e.g. IncludeLaunchDescription for mycobot_hardware or similar.
-    hardware_stub_msg = LogInfo(
+    hardware_msg = LogInfo(
         msg='[mycobot_combined] use_sim:=false — '
-            'hardware interface not yet implemented. '
-            'Running move_group + RViz in planning-only mode.',
+            'Launching hardware interface via MyCobotSystemInterface.',
         condition=UnlessCondition(use_sim),
     )
 
@@ -437,8 +462,8 @@ def generate_launch_description():
     ld.add_action(ign_image_bridge)
     ld.add_action(robot_spawner)
 
-    # Hardware stub
-    ld.add_action(hardware_stub_msg)
+    # Hardware path
+    ld.add_action(hardware_msg)
 
     # RViz exit handler — registered after Gazebo so it doesn't block sim launch
     ld.add_action(rviz_exit_setup)

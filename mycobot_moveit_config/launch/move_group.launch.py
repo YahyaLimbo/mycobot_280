@@ -117,7 +117,7 @@ def generate_launch_description():
         # Trajectory execution parameters — raise start tolerance to handle
         # Gazebo joint drift between executions (default 0.01 causes frequent aborts)
         trajectory_execution_params = {
-            'trajectory_execution.allowed_start_tolerance': 0.2,
+            'trajectory_execution.allowed_start_tolerance': 0.5,
             'trajectory_execution.execution_duration_monitoring': False,
         }
 

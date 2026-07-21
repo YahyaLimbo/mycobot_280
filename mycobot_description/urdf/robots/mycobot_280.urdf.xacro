@@ -52,7 +52,8 @@
     <xacro:mycobot_ros2_control
       prefix="$(arg prefix)"
       flange_link="$(arg flange_link)"
-      use_gazebo="$(arg use_gazebo)"/>
+      use_gazebo="$(arg use_gazebo)"
+      use_gripper="$(arg use_gripper)"/>
 
     <xacro:include filename="$(find mycobot_description)/urdf/sensors/intel_rgbd_cam_d435.urdf.xacro"/>
 
