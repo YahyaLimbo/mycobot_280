@@ -211,6 +211,10 @@
       <dynamics damping="${joint_damping}" friction="${joint_friction}"/>
     </joint>
 
+    <!-- Solid-color Gazebo material overrides DISABLED so Ignition falls back to each
+         mesh's own COLLADA material+texture (same as RViz). Re-enable if Ignition renders
+         the links black/untextured; the reliable alternative is a <pbr><albedo_map>. -->
+    <!--
     <xacro:material_visual ref_link="${prefix}link1" ambient="0.5 0.5 0.5 1" diffuse="0.5 0.5 0.5 1" specular="0.5 0.5 0.5 1"/>
     <xacro:material_visual ref_link="${prefix}link2" ambient="1 1 1 1" diffuse="1 1 1 1" specular="1 1 1 1"/>
     <xacro:material_visual ref_link="${prefix}link3" ambient="1 1 1 1" diffuse="1 1 1 1" specular="1 1 1 1"/>
@@ -218,6 +222,7 @@
     <xacro:material_visual ref_link="${prefix}link5" ambient="1 1 1 1" diffuse="1 1 1 1" specular="1 1 1 1"/>
     <xacro:material_visual ref_link="${prefix}link6" ambient="1 1 1 1" diffuse="1 1 1 1" specular="1 1 1 1"/>
     <xacro:material_visual ref_link="${prefix}${flange_link}" ambient="0.5 0.5 0.5 1" diffuse="0.5 0.5 0.5 1" specular="0.5 0.5 0.5 1"/>
+    -->
 
   </xacro:macro>
 </robot>
