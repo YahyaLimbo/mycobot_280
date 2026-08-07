@@ -5,8 +5,12 @@ moveit_controller_manager: moveit_simple_controller_manager/MoveItSimpleControll
 # Define the controllers configured using the ROS 2 Control framework.
 moveit_simple_controller_manager:
   controller_names:
-    - arm_controller   # Name of the controller for the robotic arm.
-    - gripper_action_controller # Name of the controller for the gripper
+    - arm_controller                # Name of the controller for the robotic arm.
+    - gripper_action_controller     # Adaptive gripper (re-enabled 2026-08-05).
+    # NOTE: only enable gripper_action_controller when launching with use_gripper:=true.
+    # If listed but not spawned (no gripper), MoveIt advertises a gripper capability it
+    # cannot execute and any gripper/arm_with_gripper goal waits on a missing action
+    # server. The gripper is now physically fitted and driven via SET_GRIPPER_VALUE.
 
   # Configuration for the arm_controller.
   arm_controller:
@@ -21,7 +25,9 @@ moveit_simple_controller_manager:
       - link5_to_link6
       - link6_to_link6_flange
 
-  # Configuration for the gripper_action_controller.
+  # Configuration for the gripper_action_controller. MoveIt sends a GripperCommand goal
+  # on the gripper_cmd action namespace; the ros2_control GripperActionController serves
+  # it and forwards the position to the gripper_controller command interface.
   gripper_action_controller:
     action_ns: gripper_cmd
     type: GripperCommand

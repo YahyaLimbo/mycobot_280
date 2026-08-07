@@ -36,12 +36,22 @@
       <origin xyz="0 0 0" rpy="0 0 0"/>
     </xacro:mycobot_280_arm>
 
+    <!--
+      Gripper geometry is conditional. Previously this macro was instantiated
+      unconditionally while only the <ros2_control> block honoured use_gripper, so with
+      no gripper fitted the planning model still carried gripper links. Those collided
+      with link3/link4 in folded poses (J4 below about -100 deg), invalidating the start
+      state and making MoveIt refuse to plan out of it. The include stays unconditional
+      (it only defines the macro); the instantiation is gated.
+    -->
     <xacro:include filename="$(find mycobot_description)/urdf/mech/adaptive_gripper.urdf.xacro"/>
-    <xacro:adaptive_gripper
-        parent="$(arg flange_link)"
-        prefix="$(arg prefix)">
-        <origin xyz="0 0 0.034" rpy="1.579 0 0"/>
-    </xacro:adaptive_gripper>
+    <xacro:if value="$(arg use_gripper)">
+        <xacro:adaptive_gripper
+            parent="$(arg flange_link)"
+            prefix="$(arg prefix)">
+            <origin xyz="0 0 0.034" rpy="1.579 0 0"/>
+        </xacro:adaptive_gripper>
+    </xacro:if>
 
     <xacro:include filename="$(find mycobot_description)/urdf/control/gazebo_sim_ros2_control.urdf.xacro" />
     <xacro:load_gazebo_sim_ros2_control_plugin

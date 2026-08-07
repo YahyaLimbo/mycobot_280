@@ -87,7 +87,7 @@ def generate_launch_description():
         joint_limits_file_path = os.path.join(config_path, 'joint_limits.yaml')
         kinematics_file_path = os.path.join(config_path, 'kinematics.yaml')
         moveit_controllers_file_path = os.path.join(config_path, 'moveit_controllers.yaml')
-        srdf_model_path = os.path.join(config_path, f'{robot_name_str}.srdf')
+        srdf_model_path = os.path.join(config_path, f'{robot_name_str}.srdf.xacro')
         pilz_cartesian_limits_file_path = os.path.join(config_path, 'pilz_cartesian_limits.yaml')
 
         # Create MoveIt configuration

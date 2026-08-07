@@ -2,7 +2,12 @@
 # efficiently and robustly using ROS 2 Control.
 controller_manager:
   ros__parameters:
-    update_rate: 15 # update_rate specifies how often (in Hz) the controllers should be updated.
+    # 10 Hz, not 15. The myCobot's GET_ANGLES latency is bimodal while the firmware is
+    # driving servos: ~14 ms typically, but with a tail at 58-60 ms (measured
+    # 2026-07-21). Each cycle must fit a read AND a write, so a 60 ms read tail cannot
+    # be absorbed in the 66.7 ms period that 15 Hz allows — reads were cut short
+    # mid-trajectory and escalated to a hardware error. 100 ms accommodates it.
+    update_rate: 10 # update_rate specifies how often (in Hz) the controllers should be updated.
 
     # The JointTrajectoryController allows you to send joint trajectory commands to a group
     # of joints on a robot. These commands specify the desired positions for each joint.
@@ -50,3 +55,17 @@ arm_controller:
 
     # Allow non-zero velocity at the end of the trajectory
     allow_nonzero_velocity_at_trajectory_end: true
+
+# The GripperActionController drives the single 'gripper_controller' joint. The hardware
+# interface runs the gripper open-loop (state mirrors command), so the position error
+# collapses immediately and the action reports success without stalling — allow_stalling
+# stays a safety net. goal_tolerance is generous because the adaptive gripper's feedback
+# span (17-96) never reaches the commanded 0/100 endpoints.
+gripper_action_controller:
+  ros__parameters:
+    joint: gripper_controller
+    allow_stalling: true
+    goal_tolerance: 0.05
+    stall_velocity_threshold: 0.001
+    stall_timeout: 1.0
+    action_monitor_rate: 20.0

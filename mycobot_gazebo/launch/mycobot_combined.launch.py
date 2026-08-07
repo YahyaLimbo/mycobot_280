@@ -93,7 +93,10 @@ def generate_launch_description():
     declare_use_gripper = DeclareLaunchArgument(
         name='use_gripper',
         default_value='true',
-        description='Include gripper in robot model.')
+        description='Include and drive the adaptive gripper. Default true: the gripper '
+                    'is physically fitted and actuated via SET_GRIPPER_VALUE (hardware) '
+                    'or Gazebo (sim). Set false only if the gripper is removed, to avoid '
+                    'its geometry causing phantom self-collisions in folded poses.')
 
     declare_use_camera = DeclareLaunchArgument(
         name='use_camera',
@@ -193,7 +196,8 @@ def generate_launch_description():
             .trajectory_execution(
                 file_path=os.path.join(config_path, 'moveit_controllers.yaml'))
             .robot_description_semantic(
-                file_path=os.path.join(config_path, f'{robot_name_str}.srdf'))
+                file_path=os.path.join(config_path, f'{robot_name_str}.srdf.xacro'),
+                mappings={'use_gripper': use_gripper_str})
             .joint_limits(
                 file_path=os.path.join(config_path, 'joint_limits.yaml'))
             .robot_description_kinematics(
@@ -284,6 +288,19 @@ def generate_launch_description():
                 output='screen',
             )
             actions.extend([control_node, spawn_joint_state_broadcaster, spawn_arm_controller])
+
+            # Gripper controller only when the gripper is fitted. The hardware interface
+            # drives gripper_controller via SET_GRIPPER_VALUE; without use_gripper the
+            # joint isn't in the ros2_control block and the spawner would hang.
+            if use_gripper_str.lower() == 'true':
+                spawn_gripper_controller = Node(
+                    package='controller_manager',
+                    executable='spawner',
+                    arguments=['gripper_action_controller',
+                               '--controller-manager', '/controller_manager'],
+                    output='screen',
+                )
+                actions.append(spawn_gripper_controller)
 
         return actions
 
