@@ -45,7 +45,10 @@
         <geometry>
           <mesh filename="file://$(find mycobot_description)/meshes/mycobot_280/visual/link1.dae"/>
         </geometry>
-        <origin xyz="0.0 0 0" rpy="0 0 ${-pi/2}"/>
+        <!-- No yaw: this mesh (Elephant Robotics export, like link2-7) is already authored
+             long-axis-in-Y and offset toward -Y, matching the collision box below. The old
+             Rhino mesh was long-axis-in-X and needed rpy="0 0 -pi/2". -->
+        <origin xyz="0.0 0 0" rpy="0 0 0"/>
       </visual>
       <collision>
         <geometry>

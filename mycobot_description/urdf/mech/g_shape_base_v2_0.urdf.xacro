@@ -24,12 +24,19 @@
             </collision>
         </link>
 
+        <!--
+          Unlike the arm links, this override is INTENTIONALLY kept enabled. base_link.dae is a
+          Rhino export with no texture image (and no PNG ships for it), so its own COLLADA
+          material is just a flat 0.98 off-white. A solid colour is the correct appearance here
+          anyway: the real G-shape base is plain anodised aluminium with no printed graphics.
+          Dark matte grey, deliberately darker than the light-grey textured arm links.
+        -->
         <gazebo reference="${prefix}${base_link}">
             <visual>
                 <material>
-                    <ambient>0.5 0.5 0.5 1</ambient>
-                    <diffuse>0.5 0.5 0.5 1</diffuse>
-                    <specular>0.5 0.5 0.5 1</specular>
+                    <ambient>0.12 0.12 0.12 1</ambient>
+                    <diffuse>0.22 0.22 0.22 1</diffuse>
+                    <specular>0.15 0.15 0.15 1</specular>
                 </material>
             </visual>
         </gazebo>

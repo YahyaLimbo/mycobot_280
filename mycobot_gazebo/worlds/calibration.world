@@ -198,10 +198,36 @@
       </link>
     </model>
 
+    <!--
+      Fill lights -- kept identical to empty.world so the arm looks the same in both.
+      The Fuel Sun is a single directional light (-0.5 0.1 -0.9), so faces turned away
+      from it were lit only by ambient: the arm links' COLLADA material ambient is 0.4,
+      so at scene_ambient 0.5 those faces sat at 0.4 * 0.5 = 0.20 -- which made their
+      pure-white textures read as mid-grey. Raising <ambient> alone cannot fix it: the
+      material's 0.4 caps the ambient term at 0.4 however high the scene value goes.
+      These two shadowless fills are not capped. Specular is 0 so they add no new
+      highlights to the table or legs.
+    -->
+    <light type="directional" name="fill_opposite">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 6 0 0 0</pose>
+      <diffuse>0.45 0.45 0.45 1</diffuse>
+      <specular>0.0 0.0 0.0 1</specular>
+      <direction>0.5 -0.1 -0.6</direction>
+    </light>
+
+    <light type="directional" name="fill_side">
+      <cast_shadows>false</cast_shadows>
+      <pose>0 0 6 0 0 0</pose>
+      <diffuse>0.35 0.35 0.35 1</diffuse>
+      <specular>0.0 0.0 0.0 1</specular>
+      <direction>0.2 0.9 -0.35</direction>
+    </light>
+
     <!-- Scene properties -->
     <scene>
       <shadows>false</shadows>
-      <ambient>0.5 0.5 0.5 1</ambient>
+      <ambient>0.7 0.7 0.7 1</ambient>
       <background>0.7 0.7 0.7 1</background>
     </scene>
 
