@@ -139,10 +139,10 @@ def generate_launch_description():
     # GUI, since robot_state_publisher would keep publishing its TF from the
     # URDF and the images would no longer agree with the frame they claim.
     declare_camera_tilt = DeclareLaunchArgument(
-        name='camera_tilt_deg', default_value='32.00',
+        name='camera_tilt_deg', default_value='24.45',
         description='Camera pitch, degrees below horizontal.')
     declare_camera_pan = DeclareLaunchArgument(
-        name='camera_pan_deg', default_value='147.48',
+        name='camera_pan_deg', default_value='119.14',
         description='Camera yaw about base +Z, degrees.')
     declare_camera_offset_x = DeclareLaunchArgument(
         name='camera_offset_x', default_value='0.0',
@@ -155,13 +155,13 @@ def generate_launch_description():
         name='camera_offset_z', default_value='0.0',
         description='Camera offset from the stand top, m.')
     declare_camera_stand_x = DeclareLaunchArgument(
-        name='camera_stand_x', default_value='0.22',
+        name='camera_stand_x', default_value='0.287',
         description='Camera stand X in base_link, metres.')
     declare_camera_stand_y = DeclareLaunchArgument(
-        name='camera_stand_y', default_value='0.350',
+        name='camera_stand_y', default_value='0.160',
         description='Camera stand Y in base_link, metres.')
     declare_camera_stand_z = DeclareLaunchArgument(
-        name='camera_stand_z', default_value='0.50',
+        name='camera_stand_z', default_value='0.45',
         description='Camera height above the stand base, metres.')
     declare_camera_hfov = DeclareLaunchArgument(
         name='camera_hfov', default_value='1.5184',

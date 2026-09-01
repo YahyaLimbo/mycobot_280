@@ -80,8 +80,8 @@ class PoseCollectorNode(Node):
         # file: the plan then back-projects through the wrong direction and
         # the sweep quietly covers the wrong part of the frame. Update them
         # here AND in config/handeye_calibration.yaml whenever the stand moves.
-        self.declare_parameter('nominal_camera_position', [0.22, 0.335, 0.50])
-        self.declare_parameter('nominal_camera_rpy_deg', [-122.00, 0.0, 147.48])
+        self.declare_parameter('nominal_camera_position', [0.287, 0.145, 0.450])
+        self.declare_parameter('nominal_camera_rpy_deg', [-114.45, 0.0, 119.14])
 
         # Nominal intrinsics for back-projection. Must match the URDF camera.
         self.declare_parameter('image_width', 848)

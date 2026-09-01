@@ -64,8 +64,8 @@ class PresentTargetNode(Node):
         # Same nominal camera the collector plans against, and for the same
         # reason: this only decides where to point the plate, so an error
         # costs a nice picture, never accuracy.
-        self.declare_parameter('nominal_camera_position', [0.22, 0.335, 0.50])
-        self.declare_parameter('nominal_camera_rpy_deg', [-122.00, 0.0, 147.48])
+        self.declare_parameter('nominal_camera_position', [0.287, 0.145, 0.450])
+        self.declare_parameter('nominal_camera_rpy_deg', [-114.45, 0.0, 119.14])
 
         self.declare_parameter('image_width', 848)
         self.declare_parameter('image_height', 480)
