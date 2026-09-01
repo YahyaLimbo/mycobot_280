@@ -98,14 +98,22 @@
     tilt 45, pan 37, and using that from the current position would leave the
     optical axis 16.7 deg off the workspace centre.
 
-    The aim happens to be almost unchanged by the 2026-08-30 stand move, from
-    tilt 23.17 / pan 55.38 to tilt 23.15 / pan 55.40, because the stand was
-    moved straight along the line from the shoulder to the camera rather than
-    to an arbitrary new place. That is a coincidence of how the move was
-    chosen, not a rule; recompute after any other move.
+    The defaults below are the rig this package is calibrated against, chosen
+    empirically rather than by aiming at the workspace centre. Aiming at the
+    centre scores better on paper (12/12 image cells against 9/12, 45% board
+    fill against 41%) but the plate is mounted on the flange facing along the
+    tool, so a camera looking steeply down sees it obliquely and close-range
+    poses stop detecting altogether. The shallower tilt looks ALONG the arm,
+    presents the board closer to square-on, and also conditions the rotation
+    axes better (0.78 against 0.63), which is the one degeneracy that no
+    number of extra samples can fix.
+
+    The pose planner models the arm as a sphere with no links and no collision
+    geometry, so it cannot see self-occlusion and will happily recommend an aim
+    that does not detect. Trust a detection over the coverage score.
   -->
-  <xacro:arg name="camera_tilt_deg" default="32.00"/>
-  <xacro:arg name="camera_pan_deg" default="147.48"/>
+  <xacro:arg name="camera_tilt_deg" default="24.45"/>
+  <xacro:arg name="camera_pan_deg" default="119.14"/>
 
   <!--
     Where the stand is, in base_link. Exposed so the camera can be moved
@@ -167,9 +175,9 @@
   <xacro:arg name="camera_offset_y" default="-0.025"/>
   <xacro:arg name="camera_offset_z" default="0.0"/>
 
-  <xacro:arg name="camera_stand_x" default="0.22"/>
-  <xacro:arg name="camera_stand_y" default="0.350"/>
-  <xacro:arg name="camera_stand_z" default="0.50"/>
+  <xacro:arg name="camera_stand_x" default="0.287"/>
+  <xacro:arg name="camera_stand_y" default="0.160"/>
+  <xacro:arg name="camera_stand_z" default="0.45"/>
 
   <xacro:if value="${'true' == '$(arg use_camera)' and 'true' == '$(arg use_gazebo)'}">
 

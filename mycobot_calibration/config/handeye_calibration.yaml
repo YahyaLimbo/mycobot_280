@@ -1,8 +1,8 @@
 # Eye-to-hand calibration settings for the myCobot 280 simulation.
 #
 # The defaults match the calibration.world rig: camera on the fixed stand at
-# base_link + (0.287, -0.209, 0.281), aimed at the middle of the arm's
-# workspace (tilt 23.16 deg, pan 55.26 deg in the URDF), ArUco target on the
+# base_link + (0.287, 0.145, 0.450), looking along the arm rather than straight
+# down at it (tilt 24.45 deg, pan 119.14 deg in the URDF), ArUco target on the
 # flange.
 
 aruco_detector:
@@ -121,13 +121,14 @@ handeye_pose_collector:
     # calibration, so an error here costs coverage, not accuracy. On real
     # hardware take it from CAD or a tape measure.
     # This is the CAMERA, not the stand: camera_head_joint puts the optical
-    # frame 0.01 m along +Y from the stand, so stand (0.287, -0.209, 0.281)
-    # gives the camera below.
-    nominal_camera_position: [0.22, 0.335, 0.50]
-    # Matches camera_tilt_deg:=23.16 camera_pan_deg:=55.26 in the URDF. If the
-    # camera aim is changed there, change it here too or the image-space
-    # plan back-projects through the wrong direction.
-    nominal_camera_rpy_deg: [-122.00, 0.0, 147.48]
+    # frame 0.01 m along +Y from the stand, and camera_offset_y trims a further
+    # -0.025, so stand (0.287, 0.160, 0.450) gives the camera below.
+    nominal_camera_position: [0.287, 0.145, 0.450]
+    # Matches camera_tilt_deg:=24.45 camera_pan_deg:=119.14 in the URDF, via
+    # roll = -90 - tilt and yaw = pan. If the camera aim is changed there,
+    # change it here too or the image-space plan back-projects through the
+    # wrong direction.
+    nominal_camera_rpy_deg: [-114.45, 0.0, 119.14]
 
     # Nominal intrinsics for back-projection; must match the URDF camera.
     image_width: 848
