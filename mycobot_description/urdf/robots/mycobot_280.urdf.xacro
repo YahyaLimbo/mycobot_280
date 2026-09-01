@@ -67,4 +67,11 @@
 
     <xacro:include filename="$(find mycobot_description)/urdf/sensors/intel_rgbd_cam_d435.urdf.xacro"/>
 
+    <!--
+      Eye-to-hand calibration target. Off by default so the normal sim is
+      unchanged; enable with use_aruco_marker:=true. The marker rides on the
+      flange, which is what makes the camera-to-base transform observable.
+    -->
+    <xacro:include filename="$(find mycobot_description)/urdf/targets/aruco_marker.urdf.xacro"/>
+
 </robot>

@@ -38,7 +38,11 @@ from launch.conditions import IfCondition, UnlessCondition
 from launch.event_handlers import OnProcessExit, OnShutdown
 from launch.events import Shutdown
 from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
+from launch.substitutions import (
+    LaunchConfiguration,
+    PathJoinSubstitution,
+    PythonExpression,
+)
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 from moveit_configs_utils import MoveItConfigsBuilder
@@ -69,6 +73,18 @@ def generate_launch_description():
     use_rviz = LaunchConfiguration('use_rviz')
     use_gripper = LaunchConfiguration('use_gripper')
     use_camera = LaunchConfiguration('use_camera')
+    use_aruco_marker = LaunchConfiguration('use_aruco_marker')
+    # Map the friendly target name onto the mesh the URDF should load.
+    #
+    # The id baked into this mesh must match marker_id in
+    # mycobot_calibration/config/handeye_calibration.yaml (3). They disagreed
+    # once -- the target moved to id 3 while these launch files kept naming
+    # id 0 -- and nothing failed loudly: Gazebo rendered id 0, the detector
+    # asked for id 3, and every frame came back "no detection".
+    target_mesh = PythonExpression([
+        "'charuco_dict_4x4_250_5x5.dae' if '",
+        LaunchConfiguration('calibration_target'),
+        "' == 'charuco' else 'aruco_dict_6x6_250_id3.dae'"])
     robot_name = LaunchConfiguration('robot_name')
     world_file = LaunchConfiguration('world_file')
     x = LaunchConfiguration('x')
@@ -103,6 +119,61 @@ def generate_launch_description():
         default_value='false',
         description='Enable RGBD camera in simulation.')
 
+    declare_use_gz_gui = DeclareLaunchArgument(
+        name='use_gz_gui',
+        default_value='true',
+        description='Show the Ignition Gazebo GUI. Set false to run the server '
+                    'headless; camera sensors keep rendering either way.')
+
+    declare_calibration_target = DeclareLaunchArgument(
+        name='calibration_target',
+        default_value='aruco',
+        choices=['aruco', 'charuco'],
+        description='Which calibration target to fit when use_aruco_marker is '
+                    'true. The ChArUco board fits its pose from 16 interior '
+                    'corners instead of one marker\'s 4, and keeps working '
+                    'when only part of it is in frame.')
+
+    # Where the camera is and what it sees. Exposed here because the camera is
+    # part of the robot description: it cannot usefully be moved in the Gazebo
+    # GUI, since robot_state_publisher would keep publishing its TF from the
+    # URDF and the images would no longer agree with the frame they claim.
+    declare_camera_tilt = DeclareLaunchArgument(
+        name='camera_tilt_deg', default_value='32.00',
+        description='Camera pitch, degrees below horizontal.')
+    declare_camera_pan = DeclareLaunchArgument(
+        name='camera_pan_deg', default_value='147.48',
+        description='Camera yaw about base +Z, degrees.')
+    declare_camera_offset_x = DeclareLaunchArgument(
+        name='camera_offset_x', default_value='0.0',
+        description='Camera offset from the TOP OF THE STAND, m. Moves the '
+                    'sensor without moving the pole.')
+    declare_camera_offset_y = DeclareLaunchArgument(
+        name='camera_offset_y', default_value='-0.025',
+        description='Camera offset from the stand top, m.')
+    declare_camera_offset_z = DeclareLaunchArgument(
+        name='camera_offset_z', default_value='0.0',
+        description='Camera offset from the stand top, m.')
+    declare_camera_stand_x = DeclareLaunchArgument(
+        name='camera_stand_x', default_value='0.22',
+        description='Camera stand X in base_link, metres.')
+    declare_camera_stand_y = DeclareLaunchArgument(
+        name='camera_stand_y', default_value='0.350',
+        description='Camera stand Y in base_link, metres.')
+    declare_camera_stand_z = DeclareLaunchArgument(
+        name='camera_stand_z', default_value='0.50',
+        description='Camera height above the stand base, metres.')
+    declare_camera_hfov = DeclareLaunchArgument(
+        name='camera_hfov', default_value='1.5184',
+        description='Horizontal FOV, radians. If changed, change camera_hfov '
+                    'in both blocks of handeye_calibration.yaml to match.')
+
+    declare_use_aruco_marker = DeclareLaunchArgument(
+        name='use_aruco_marker',
+        default_value='false',
+        description='Attach the ArUco calibration target to the flange. Used '
+                    'for eye-to-hand calibration; leave false for normal runs.')
+
     declare_robot_name = DeclareLaunchArgument(
         name='robot_name',
         default_value='mycobot_280',
@@ -113,6 +184,13 @@ def generate_launch_description():
         default_value='empty.world',
         description='Gazebo world file name (e.g. empty.world).')
 
+    # Robot spawn pose in WORLD coordinates. Moving the robot does not change
+    # the calibration geometry at all: the camera stand is a child of base_link
+    # in the URDF, so it travels with the robot and T_base_cam is unchanged.
+    # What it does change is where the assembly sits on the table, and where
+    # validate_calibration.launch.py has to spawn its object -- pass the same
+    # offsets there as robot_base_x/y/z or the object lands somewhere the arm
+    # is not.
     declare_x = DeclareLaunchArgument(name='x', default_value='0.0')
     declare_y = DeclareLaunchArgument(name='y', default_value='0.0')
     declare_z = DeclareLaunchArgument(name='z', default_value='0.05')
@@ -130,6 +208,20 @@ def generate_launch_description():
         launch_arguments={
             'jsp_gui': 'false',
             'use_camera': use_camera,
+            'use_aruco_marker': use_aruco_marker,
+            'aruco_marker_mesh': target_mesh,
+            # Camera placement and optics. Only the RSP path needs these: the
+            # MoveIt description below is built with use_camera:=false, and the
+            # Gazebo model is spawned from /robot_description, which RSP owns.
+            'camera_tilt_deg': LaunchConfiguration('camera_tilt_deg'),
+            'camera_pan_deg': LaunchConfiguration('camera_pan_deg'),
+            'camera_offset_x': LaunchConfiguration('camera_offset_x'),
+            'camera_offset_y': LaunchConfiguration('camera_offset_y'),
+            'camera_offset_z': LaunchConfiguration('camera_offset_z'),
+            'camera_stand_x': LaunchConfiguration('camera_stand_x'),
+            'camera_stand_y': LaunchConfiguration('camera_stand_y'),
+            'camera_stand_z': LaunchConfiguration('camera_stand_z'),
+            'camera_hfov': LaunchConfiguration('camera_hfov'),
             'use_gazebo': use_sim,      # tells RSP whether to expect sim clock
             'use_gripper': use_gripper,
             'use_rviz': 'false',        # RViz handled below in OpaqueFunction
@@ -160,6 +252,13 @@ def generate_launch_description():
         use_sim_str = LaunchConfiguration('use_sim').perform(context)
         use_rviz_str = LaunchConfiguration('use_rviz').perform(context)
         use_gripper_str = LaunchConfiguration('use_gripper').perform(context)
+        use_aruco_marker_str = LaunchConfiguration('use_aruco_marker').perform(context)
+        target_str = LaunchConfiguration('calibration_target').perform(context)
+        # Must stay in step with target_mesh above AND with marker_id in
+        # config/handeye_calibration.yaml.
+        target_mesh_str = ('charuco_dict_4x4_250_5x5.dae'
+                           if target_str == 'charuco'
+                           else 'aruco_dict_6x6_250_id3.dae')
         use_sim_bool = use_sim_str.lower() == 'true'
 
         pkg_share_moveit = FindPackageShare(pkg_moveit).find(pkg_moveit)
@@ -184,6 +283,13 @@ def generate_launch_description():
                 'flange_link:=link6_flange',
                 'gripper_type:=adaptive_gripper',
                 'use_camera:=false',
+                # The marker link carries no collision geometry, so including
+                # it costs the planner nothing and keeps MoveIt's model and
+                # RViz consistent with what Gazebo spawned. Leaving it out
+                # would make aruco_marker_link unknown to move_group and rule
+                # it out as a pose-goal reference frame.
+                f'use_aruco_marker:={use_aruco_marker_str}',
+                f'aruco_marker_mesh:={target_mesh_str}',
             ],
             capture_output=True,
             text=True,
@@ -369,14 +475,30 @@ def generate_launch_description():
         condition=IfCondition(use_sim),
     )
 
-    # Ignition Gazebo server
-    gazebo_server = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_ros_ign_gazebo, 'launch', 'ign_gazebo.launch.py')
-        ),
-        launch_arguments=[('ign_args', [' -r -v 4 ', world_path])],
-        condition=IfCondition(use_sim),
-    )
+    # Ignition Gazebo server.
+    #
+    # Wrapped in an OpaqueFunction so use_gz_gui can switch the '-s'
+    # (server-only) flag. This matters for headless hosts: 'ign gazebo' starts
+    # the GUI and the server as one unit, so when the GUI cannot get a working
+    # GL context -- no /dev/dri in the container means falling back to software
+    # rendering -- it terminates and drags the server down with it, leaving the
+    # bridges up and the simulation silently dead. Sensor rendering runs in the
+    # Sensors system's own context and is unaffected by dropping the GUI, so
+    # camera-driven work such as hand-eye calibration should run with
+    # use_gz_gui:=false.
+    def make_gazebo_server(context):
+        if LaunchConfiguration('use_sim').perform(context).lower() != 'true':
+            return []
+        gui_str = LaunchConfiguration('use_gz_gui').perform(context)
+        flags = ' -r -v 4 ' if gui_str.lower() == 'true' else ' -s -r -v 4 '
+        return [IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                os.path.join(pkg_ros_ign_gazebo, 'launch', 'ign_gazebo.launch.py')
+            ),
+            launch_arguments=[('ign_args', [flags, world_path])],
+        )]
+
+    gazebo_server = OpaqueFunction(function=make_gazebo_server)
 
     # ROS <-> Ignition topic bridge
     ign_bridge = Node(
@@ -412,7 +534,8 @@ def generate_launch_description():
         z_str = LaunchConfiguration('z').perform(context)
         world_str = LaunchConfiguration('world_file').perform(context)
         # If user kept the default z (0.05) and selected calibration.world,
-        # raise the robot to sit on the 0.4 m-high table top.
+        # raise the robot to sit on the 0.4 m-high table top, whose surface is
+        # at 0.425 (box centred at 0.4, 0.05 thick).
         if world_str == 'calibration.world' and z_str == '0.05':
             z_str = '0.425'
         return [Node(
@@ -453,6 +576,18 @@ def generate_launch_description():
     ld.add_action(declare_use_rviz)
     ld.add_action(declare_use_gripper)
     ld.add_action(declare_use_camera)
+    ld.add_action(declare_use_gz_gui)
+    ld.add_action(declare_calibration_target)
+    ld.add_action(declare_camera_tilt)
+    ld.add_action(declare_camera_pan)
+    ld.add_action(declare_camera_offset_x)
+    ld.add_action(declare_camera_offset_y)
+    ld.add_action(declare_camera_offset_z)
+    ld.add_action(declare_camera_stand_x)
+    ld.add_action(declare_camera_stand_y)
+    ld.add_action(declare_camera_stand_z)
+    ld.add_action(declare_camera_hfov)
+    ld.add_action(declare_use_aruco_marker)
     ld.add_action(declare_robot_name)
     ld.add_action(declare_world_file)
     ld.add_action(declare_x)

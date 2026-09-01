@@ -5,6 +5,172 @@
   <xacro:arg name="use_gazebo" default="true"/>
   <xacro:arg name="prefix" default=""/>
 
+  <!--
+    Image size and clip range.
+
+    The previous fixed 424x240 is a D435 *depth* mode, and at the ~0.5 m
+    working distance of the calibration rig it puts a 40 mm ArUco marker on
+    roughly 22 px. Corner localisation is quantised at about 1.8 mm per pixel
+    there, which dominates every other error term in the hand-eye solve.
+    848x480 is a native D435 colour mode and halves that to ~0.9 mm/px while
+    costing far less render time than 1280x720 at the same field of view.
+
+    The far clip was 1.5 m, which is enough for the marker but clips the table
+    and background out of the depth image; 3.0 m keeps the scene intact.
+  -->
+  <xacro:arg name="camera_width" default="848"/>
+  <xacro:arg name="camera_height" default="480"/>
+
+  <!--
+    Field of view.
+
+    1.5184 rad = 87 deg, the D435's depth FOV. Kept because this file models a
+    D435 and the simulated camera should resemble the sensor it is named after.
+
+    The lens used to be the binding constraint on image coverage, and no longer
+    is. The arm's reachable volume is a sphere of radius ~0.26 m about the
+    shoulder, so how much of the frame it can occupy is set by how far away the
+    camera is: at 0.555 m it subtended only 27.9 deg either side against the
+    lens's 43.5 deg, capping the workspace at ~56% of the image width whatever
+    the pose planner did, and the target could not be driven to the left or
+    right edge of the frame at all. Moving the stand in to 0.380 m raises that
+    ceiling to ~90%, which is why the stand moved rather than the lens:
+
+      stand D   workspace spans   cells   edge cells
+      0.555 m   56% of width      8/12    6/10
+      0.500 m   64% of width      12/12   10/10
+      0.400 m   90% of width      12/12   10/10      <- current
+      0.378 m   100% of width     12/12   10/10
+
+    A narrower lens remains the other way to buy the same thing, and it would
+    additionally shrink the dominant error term. Measured at the OLD 0.555 m
+    stand, so the choice can be judged rather than guessed:
+
+      hfov    fx     workspace spans   marker px   cells   edge cells
+      87 deg  447    56% of width      ~49         8/12    6/10
+      69 deg  617    77% of width      ~69         12/12   10/10
+      50 deg  909    100% of width     ~96         12/12   10/10
+
+    (The 69 and 50 deg rows need image_grid at 8x6 rather than 6x5.) 69 deg is
+    the D435's colour FOV; 50 deg matches the lens to the workspace but stops
+    resembling a D435. Marker pixels matter because the dominant error here is
+    a fixed inward bias of about half a pixel per marker edge from anti-aliased
+    rendering, which reads as a proportional over-estimate of every distance
+    and shrinks with marker PIXELS, not with marker millimetres. Moving the
+    stand in already bought most of what a narrower lens would: the marker's
+    median span over the sweep went from ~49 px to ~74 px.
+
+    Changing this means changing it in three other places, or the detector
+    builds K for one camera while the images come from another, which silently
+    scales every translation: BOTH blocks of
+    mycobot_calibration/config/handeye_calibration.yaml (the detector uses it
+    to build K, the collector to back-project) and
+    mycobot_calibration/launch/validate_calibration.launch.py. At 69 deg or
+    narrower, image_grid should also go from 6x5 to 8x6 to keep all 12 cells.
+  -->
+  <xacro:arg name="camera_hfov" default="1.5184"/>
+  <xacro:arg name="camera_near_clip" default="0.05"/>
+  <xacro:arg name="camera_far_clip" default="3.0"/>
+  <xacro:arg name="camera_update_rate" default="5"/>
+
+  <!--
+    Where the camera looks.
+
+    The aim has to follow the stand. From the camera's position at
+    (0.287, -0.209, 0.281) the workspace centre (0, 0, 0.13) lies 23.16 deg
+    down and 55.26 deg to the side, and those are the defaults below: they put
+    the optical axis on it exactly.
+
+    That matters for calibration specifically. A hand-eye dataset is supposed
+    to put the target across the whole image, edges included, because corner
+    localisation and lens distortion both vary across the field and a fit made
+    from one patch is only trustworthy in that patch. No pose-planning strategy
+    can place the target in image regions the arm cannot reach, so the aim has
+    to be right before the poses are chosen.
+
+    An earlier version had these fixed at tilt 25, pan 0, which aimed the
+    optical axis along base +Y and 25 deg down while the workspace sat well off
+    to the side; it projected to a disc centred on the bottom-left corner of
+    the frame, more than half of it outside the image entirely.
+
+    If camera_stand_x/y/z change, these must be recomputed or the workspace
+    drifts off centre: at the previous stand position the correct aim was
+    tilt 45, pan 37, and using that from the current position would leave the
+    optical axis 16.7 deg off the workspace centre.
+
+    The aim happens to be almost unchanged by the 2026-08-30 stand move, from
+    tilt 23.17 / pan 55.38 to tilt 23.15 / pan 55.40, because the stand was
+    moved straight along the line from the shoulder to the camera rather than
+    to an arbitrary new place. That is a coincidence of how the move was
+    chosen, not a rule; recompute after any other move.
+  -->
+  <xacro:arg name="camera_tilt_deg" default="32.00"/>
+  <xacro:arg name="camera_pan_deg" default="147.48"/>
+
+  <!--
+    Where the stand is, in base_link. Exposed so the camera can be moved
+    between runs without editing this file: moving it in the Gazebo GUI does
+    not work, because the camera is a link of the robot model welded on by
+    fixed joints, and robot_state_publisher would go on publishing TF from the
+    URDF regardless. Images would come from the new place while TF insisted on
+    the old one, which breaks the ground-truth comparison silently.
+
+    Changing these is a real test of the calibration: it should recover
+    whatever pose the camera was actually put at. If you move it, update
+    nominal_camera_position in config/handeye_calibration.yaml so the pose
+    planner still aims at the right place. That guess costs coverage, not
+    accuracy, but a bad one wastes a sweep.
+
+    How far away the stand is, specifically, is the single number that decides
+    how much of the frame the calibration target can fill. The arm can only
+    bring the plate to within (D - 0.26) m of the camera, and the plate's span
+    in pixels is fx * plate_size / distance. At the previous D = 0.555 m the
+    plate filled 18% of the frame height at the closest planned pose, well
+    under the "board covering the entire image" rule a calibration dataset is
+    supposed to satisfy. D = 0.380 m puts it at 90%.
+
+    That 90% comes from the close_up_poses the collector plans explicitly.
+    They go as near as the arm can reach, which is (D - 0.26) m, so this
+    number sets the fill directly: at D = 0.380 m the arm reaches 0.140 m and
+    the 139.5 mm plate spans 90% of the frame height there. Every 10 mm the
+    stand moves out costs roughly 6 points of fill.
+
+    Closer still is possible and was deliberately not taken: D = 0.378 m is
+    where the workspace exactly fills the 87 deg lens, but it leaves only
+    120 mm between the camera and the surface of the arm's reachable sphere.
+    In simulation that is free, since the plate carries no collision geometry,
+    but it is thin clearance to hand to a physical arm swinging a 140 mm
+    board, so the stand sits at 0.400 m with 140 mm of margin instead.
+  -->
+  <!--
+    Camera position RELATIVE TO THE TOP OF THE STAND.
+
+    camera_stand_x/y/z move the stand and the camera together: the pole is a
+    child of base_link at (stand_x, stand_y, 0) and the camera is welded to its
+    top at height stand_z, so there is no way to reposition the sensor alone
+    with those three alone. These three offsets add that, measured from the top
+    of the pole, in base_link axes.
+
+    Zero by default, so the geometry is exactly as before unless set.
+
+    The stand is drawn as a 5 mm cylinder with a 0.15 x 0.10 m foot. A small
+    offset reads as the camera being on a short bracket. A large one leaves the
+    sensor floating in mid-air with the pole somewhere else. That is harmless
+    to the physics and to the calibration, which only ever uses
+    camera_head_link's TF, but it looks broken on screen and misleads anyone
+    reading the scene.
+
+    The 0.01 m on Y is the original stand-to-camera offset and is kept, so
+    camera_offset_y is measured from there, not from the pole's axis.
+  -->
+  <xacro:arg name="camera_offset_x" default="0.0"/>
+  <xacro:arg name="camera_offset_y" default="-0.025"/>
+  <xacro:arg name="camera_offset_z" default="0.0"/>
+
+  <xacro:arg name="camera_stand_x" default="0.22"/>
+  <xacro:arg name="camera_stand_y" default="0.350"/>
+  <xacro:arg name="camera_stand_z" default="0.50"/>
+
   <xacro:if value="${'true' == '$(arg use_camera)' and 'true' == '$(arg use_gazebo)'}">
 
     <xacro:property name="M_PI" value="3.1415926535897931" />
@@ -17,21 +183,22 @@
     <xacro:property name="d435_cam_depth_to_infra2_offset" value="-0.050"/>
     <xacro:property name="d435_cam_depth_to_color_offset" value="0.015"/>
 
-    <xacro:property name="camera_tilt_angle_deg" value="25"/>
+    <xacro:property name="camera_tilt_angle_deg" value="$(arg camera_tilt_deg)"/>
+    <xacro:property name="camera_pan_angle_deg" value="$(arg camera_pan_deg)"/>
 
     <link name="torso_link">
       <inertial>
-        <origin xyz="0 0 0.50" />
+        <origin xyz="0 0 $(arg camera_stand_z)" />
         <mass value="2.5" />
         <inertia ixx="0.8" ixy="0.0" ixz="0.0" iyy="0.8" iyz="0.0" izz="0.8" />
       </inertial>
       <visual name="holder">
-        <origin xyz="0 0 0.25" rpy="0 0 0" />
+        <origin xyz="0 0 ${$(arg camera_stand_z)/2}" rpy="0 0 0" />
         <material name="LightGrey">
           <color rgba="0.7 0.7 0.7 1.0"/>
         </material>
         <geometry>
-          <cylinder radius="0.005" length="0.5"/>
+          <cylinder radius="0.005" length="$(arg camera_stand_z)"/>
         </geometry>
       </visual>
       <visual name="base">
@@ -44,9 +211,9 @@
         </geometry>
       </visual>
       <collision name="holder">
-        <origin xyz="0 0 0.25" rpy="0 0 0" />
+        <origin xyz="0 0 ${$(arg camera_stand_z)/2}" rpy="0 0 0" />
         <geometry>
-          <cylinder radius="0.005" length="0.5"/>
+          <cylinder radius="0.005" length="$(arg camera_stand_z)"/>
         </geometry>
       </collision>
       <collision name="base">
@@ -60,13 +227,15 @@
     <joint name="$(arg prefix)base_link_to_torso_link" type="fixed">
       <parent link="$(arg prefix)base_link"/>
       <child link="torso_link"/>
-      <origin xyz="0.22 -0.30 0" rpy="0 0 0"/>
+      <origin xyz="$(arg camera_stand_x) $(arg camera_stand_y) 0" rpy="0 0 0"/>
     </joint>
 
     <joint name="camera_head_joint" type="fixed">
       <parent link="torso_link"/>
       <child link="camera_head_link" />
-      <origin xyz="0 0.01 0.50" rpy="0.0 ${camera_tilt_angle_deg * M_PI / 180} ${M_PI/2}"/>
+      <origin xyz="$(arg camera_offset_x) ${0.01 + $(arg camera_offset_y)} ${$(arg camera_stand_z) + $(arg camera_offset_z)}"
+              rpy="0.0 ${camera_tilt_angle_deg * M_PI / 180}
+                   ${M_PI/2 + camera_pan_angle_deg * M_PI / 180}"/>
     </joint>
 
     <link name="camera_head_link">
@@ -151,20 +320,20 @@
     <gazebo reference="camera_head_link">
       <sensor name="camera_head" type="rgbd_camera">
         <camera>
-          <horizontal_fov>1.5184</horizontal_fov>
+          <horizontal_fov>$(arg camera_hfov)</horizontal_fov>
           <image>
-            <width>424</width>
-            <height>240</height>
+            <width>$(arg camera_width)</width>
+            <height>$(arg camera_height)</height>
           </image>
           <clip>
-            <near>0.05</near>
-            <far>1.5</far>
+            <near>$(arg camera_near_clip)</near>
+            <far>$(arg camera_far_clip)</far>
           </clip>
         </camera>
         <always_on>1</always_on>
         <gz_frame_id>camera_head_link</gz_frame_id>
         <topic>camera_head</topic>
-        <update_rate>5</update_rate>
+        <update_rate>$(arg camera_update_rate)</update_rate>
         <visualize>true</visualize>
       </sensor>
     </gazebo>

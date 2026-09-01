@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <contributor>
+      <author>mycobot_calibration/generate_aruco_target.py</author>
+    </contributor>
+    <up_axis>Z_UP</up_axis>
+    <unit meter="1.0" name="meter"/>
+  </asset>
+
+  <library_images>
+    <image id="marker_tex" name="marker_tex">
+      <init_from>charuco_dict_4x4_250_5x5.png</init_from>
+    </image>
+  </library_images>
+
+  <library_effects>
+    <effect id="marker_fx">
+      <profile_COMMON>
+        <newparam sid="marker_surface">
+          <surface type="2D">
+            <init_from>marker_tex</init_from>
+            <format>R8G8B8</format>
+          </surface>
+        </newparam>
+        <newparam sid="marker_sampler">
+          <sampler2D>
+            <source>marker_surface</source>
+            <minfilter>LINEAR_MIPMAP_LINEAR</minfilter>
+            <magfilter>LINEAR</magfilter>
+          </sampler2D>
+        </newparam>
+        <technique sid="common">
+          <lambert>
+            <emission>
+              <color>0 0 0 1</color>
+            </emission>
+            <!-- Ambient is textured as well as diffuse. With a textured ambient
+                 term the print stays black-on-white under the world's high
+                 scene ambient; a flat grey ambient would lift the black squares
+                 and cost the detector its contrast. -->
+            <ambient>
+              <texture texture="marker_sampler" texcoord="UVSET0"/>
+            </ambient>
+            <diffuse>
+              <texture texture="marker_sampler" texcoord="UVSET0"/>
+            </diffuse>
+            <!-- Matte: a specular highlight sliding across the plate would
+                 blow out white squares and break corner refinement. -->
+            <reflective>
+              <color>0 0 0 1</color>
+            </reflective>
+            <transparency>
+              <float>1.0</float>
+            </transparency>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+
+    <!-- Blank back of the plate. A single-sided plane is invisible from
+         behind, which reads as the target vanishing rather than as a plate
+         seen from the wrong side. The back is plain white so it can never be
+         mistaken for a marker: a mirrored ArUco pattern is not a valid code,
+         but giving the back its own material removes the question entirely. -->
+    <effect id="blank_fx">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <emission><color>0 0 0 1</color></emission>
+            <ambient><color>0.85 0.85 0.85 1</color></ambient>
+            <diffuse><color>0.85 0.85 0.85 1</color></diffuse>
+            <reflective><color>0 0 0 1</color></reflective>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+
+  <library_materials>
+    <material id="marker_mat" name="marker_mat">
+      <instance_effect url="#marker_fx"/>
+    </material>
+    <material id="blank_mat" name="blank_mat">
+      <instance_effect url="#blank_fx"/>
+    </material>
+  </library_materials>
+
+  <library_geometries>
+    <geometry id="plate" name="plate">
+      <mesh>
+        <source id="plate_pos">
+          <float_array id="plate_pos_arr" count="24">-0.060500 -0.060500 0.000000 0.060500 -0.060500 0.000000 0.060500 0.060500 0.000000 -0.060500 0.060500 0.000000 -0.060500 -0.060500 -0.000600 0.060500 -0.060500 -0.000600 0.060500 0.060500 -0.000600 -0.060500 0.060500 -0.000600</float_array>
+          <technique_common>
+            <accessor source="#plate_pos_arr" count="8" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="plate_norm">
+          <float_array id="plate_norm_arr" count="6">0 0 1 0 0 -1</float_array>
+          <technique_common>
+            <accessor source="#plate_norm_arr" count="2" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <source id="plate_uv">
+          <float_array id="plate_uv_arr" count="8">0 0 1 0 1 1 0 1</float_array>
+          <technique_common>
+            <accessor source="#plate_uv_arr" count="4" stride="2">
+              <param name="S" type="float"/>
+              <param name="T" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="plate_vtx">
+          <input semantic="POSITION" source="#plate_pos"/>
+        </vertices>
+        <triangles count="2" material="marker_mat">
+          <input semantic="VERTEX" source="#plate_vtx" offset="0"/>
+          <input semantic="NORMAL" source="#plate_norm" offset="1"/>
+          <input semantic="TEXCOORD" source="#plate_uv" offset="2" set="0"/>
+          <p>0 0 0  1 0 1  2 0 2   0 0 0  2 0 2  3 0 3</p>
+        </triangles>
+        <!-- Reversed winding, and offset behind the printed face rather than
+             coplanar with it, which would z-fight. -->
+        <triangles count="2" material="blank_mat">
+          <input semantic="VERTEX" source="#plate_vtx" offset="0"/>
+          <input semantic="NORMAL" source="#plate_norm" offset="1"/>
+          <input semantic="TEXCOORD" source="#plate_uv" offset="2" set="0"/>
+          <p>4 1 0  6 1 2  5 1 1   4 1 0  7 1 3  6 1 2</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+
+  <library_visual_scenes>
+    <visual_scene id="scene" name="scene">
+      <node id="plate_node" name="plate_node" type="NODE">
+        <instance_geometry url="#plate">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="marker_mat" target="#marker_mat">
+                <bind_vertex_input semantic="UVSET0" input_semantic="TEXCOORD"
+                                   input_set="0"/>
+              </instance_material>
+              <instance_material symbol="blank_mat" target="#blank_mat"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+
+  <scene>
+    <instance_visual_scene url="#scene"/>
+  </scene>
+</COLLADA>

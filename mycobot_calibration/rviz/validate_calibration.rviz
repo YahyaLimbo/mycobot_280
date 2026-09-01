@@ -1,0 +1,75 @@
+Panels:
+  - Class: rviz_common/Displays
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Detections1
+      Splitter Ratio: 0.5
+    Tree Height: 300
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Class: rviz_default_plugins/Grid
+      Name: Grid
+      Enabled: true
+      Cell Size: 0.1
+      Plane Cell Count: 10
+      Color: 160; 160; 164
+      Reference Frame: <Fixed Frame>
+      Value: true
+    # base_link, the true camera frame, the calibrated one published by
+    # calibration_publisher, and the detected object -- the four frames the
+    # validation report compares.
+    - Class: rviz_default_plugins/TF
+      Name: TF
+      Enabled: true
+      Marker Scale: 0.15
+      Show Names: true
+      Show Axes: true
+      Show Arrows: false
+      Frame Timeout: 15
+      Value: true
+    # The camera viewport with the object's detection drawn on it. This is the
+    # validation detector, which runs under its own node name and so publishes
+    # on its own topic; the sweep's detector is /aruco_detector/debug_image.
+    - Class: rviz_default_plugins/Image
+      Name: Detections
+      Enabled: true
+      Topic:
+        Value: /aruco_object_detector/debug_image
+        Depth: 2
+        Durability Policy: Volatile
+        Reliability Policy: Best Effort
+        History Policy: Keep Last
+      Max Value: 1
+      Min Value: 0
+      Normalize Range: true
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: base_link
+    Frame Rate: 30
+  Tools:
+    - Class: rviz_default_plugins/MoveCamera
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Name: Current View
+      Distance: 1.2
+      Focal Point:
+        X: 0.1
+        Y: -0.1
+        Z: 0.3
+      Pitch: 0.4
+      Yaw: 2.2
+      Target Frame: base_link
+    Saved: ~
+Window Geometry:
+  Height: 800
+  Width: 1200
+  Displays:
+    collapsed: false
+  Detections:
+    collapsed: false

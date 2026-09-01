@@ -9,6 +9,19 @@
   direction: GZ_TO_ROS
   lazy: true
 
+# Same Ignition topic bridged a second time under the colour namespace.
+# The rgbd_camera sensor publishes a single camera_info for both streams, but
+# anything consuming /camera_head/color/image_raw -- ArUco detection, and any
+# image_transport camera subscriber -- looks for intrinsics next to the image
+# it subscribed to. Without this entry the colour stream has no intrinsics at
+# all and marker pose estimation has nothing to work with.
+- ros_topic_name: "camera_head/color/camera_info"
+  gz_topic_name: "camera_head/camera_info"
+  ros_type_name: "sensor_msgs/msg/CameraInfo"
+  gz_type_name: "ignition.msgs.CameraInfo"
+  direction: GZ_TO_ROS
+  lazy: true
+
 # ign topic published by Sensors plugin
 - ros_topic_name: "camera_head/depth/color/points"
   gz_topic_name: "camera_head/points"

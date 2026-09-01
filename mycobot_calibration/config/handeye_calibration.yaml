@@ -1,0 +1,275 @@
+# Eye-to-hand calibration settings for the myCobot 280 simulation.
+#
+# The defaults match the calibration.world rig: camera on the fixed stand at
+# base_link + (0.287, -0.209, 0.281), aimed at the middle of the arm's
+# workspace (tilt 23.16 deg, pan 55.26 deg in the URDF), ArUco target on the
+# flange.
+
+aruco_detector:
+  ros__parameters:
+    image_topic: /camera_head/color/image_raw
+    camera_info_topic: /camera_head/color/camera_info
+
+    # The rgbd_camera sensor renders from its own origin, which the URDF puts
+    # at camera_head_link -- coincident with the depth frame, 15 mm from the
+    # colour frame. Stamping detections in the colour frame would bias every
+    # one of them by that baseline (~22 px at this working distance), which
+    # shows up as a systematic few-millimetre error in the final calibration.
+    camera_frame: camera_head_depth_optical_frame
+    marker_frame: aruco_marker_detected
+
+    # 'aruco' remains the default. The ChArUco path below is implemented and
+    # works, but on THIS rig it is measurably worse than the single marker --
+    # see the "ChArUco: implemented, not yet worth using" section of the
+    # README. Switch with target_type:=charuco once the board spans more
+    # pixels (higher camera resolution, or fewer/larger squares).
+    target_type: aruco
+    dictionary: DICT_6X6_250
+
+    # ChArUco geometry -- must match generate_aruco_target.py --type charuco.
+    # 5x5 squares of 22 mm on a 121 mm plate gives 16 interior corners.
+    squares_x: 5
+    squares_y: 5
+    square_length: 0.022
+    charuco_marker_length: 0.0165
+
+    # Enough corners for a well-conditioned pose, few enough that a board
+    # half out of frame still counts. A single ArUco clipped by the frame
+    # edge yields nothing at all; this is the main practical gain.
+    min_charuco_corners: 6
+
+    # id 3 of DICT_6X6_250: the physical marker this rig is calibrated against,
+    # so the simulated target and the printed one are the same marker.
+    #
+    # Must differ from the validation object's id (1, set in
+    # validate_calibration.launch.py). Both are in the camera's view during
+    # validation and the detector picks by id, so sharing one would silently
+    # calibrate against whichever the detector happened to return first.
+    # Changing this means regenerating the asset -- see aruco_marker_mesh in
+    # mycobot_description/urdf/targets/aruco_marker.urdf.xacro.
+    marker_id: 3
+    # Edge length of the black marker square, NOT the white plate around it.
+    # Must match generate_aruco_target.py --marker-size, and the plate it
+    # implies (1.2x this at border-ratio 0.10, so 0.0960) must match
+    # marker_size in the collector
+    # block below, which uses the plate to keep it clear of the frame border.
+    #
+    # THIS MUST EQUAL THE PRINTED SQUARE. It is the one value that scales every
+    # distance the detector reports, with nothing ever looking wrong: get it
+    # 1% off and every translation is 1% off, permanently. 0.080 is the
+    # measured edge of the physical marker this rig is calibrated against.
+    #
+    # It was briefly set to 0.093 (2026-08-30/31) to make the board fill more
+    # of the frame for the "board covers the entire image" rule. That was a
+    # mistake: it made the simulated target a different object from the printed
+    # one, so a sim-derived calibration would not have transferred. Frame
+    # coverage is bought by moving the CAMERA closer, never by resizing the
+    # target away from the hardware.
+    #
+    # The renderer's anti-aliased edges pull refined corners inward by roughly
+    # half a pixel per side, so the marker reads slightly smaller than it is
+    # and distances come out proportionally long. That bias shrinks with marker
+    # PIXELS, not marker metres, which is another reason to move the camera
+    # rather than grow the target:
+    #
+    #   0.040  ~58 px  +1.90% of range
+    #   0.055  ~80 px  +1.43% of range
+    #   0.080  (measured off the printed target; bias not re-measured)
+    marker_size: 0.080
+
+    # 'computed' derives K from the image size and camera_hfov below.
+    # 'camera_info' uses the published intrinsics.
+    #
+    # Default is 'computed' because Ignition Fortress advertises CameraInfo
+    # for rgbd_camera with its built-in defaults (K for 320x240 at 60 deg)
+    # no matter what the SDF <camera> block requests, while delivering images
+    # at the requested size. Using that K silently scales every translation.
+    # On real hardware, switch this to camera_info.
+    intrinsics_source: computed
+    # Must match the URDF camera_hfov argument (1.5184 rad = 87 deg, the
+    # D435's depth FOV). Getting this out of step with the URDF does not fail
+    # loudly -- it scales every translation the detector reports by the ratio
+    # of the two focal lengths, and the result still looks self-consistent.
+    camera_hfov: 1.5184
+
+    publish_debug_image: true
+    publish_tf: true
+
+    # Accumulate past detections on the debug image, with the 4x3 cell grid
+    # and a running count. Coverage is a property of the whole sweep and so
+    # cannot be judged from a single frame, but the trail is clutter whenever
+    # that is not the question being asked -- during validation, for instance,
+    # where there is one static object and no coverage story.
+    #
+    # Off by default; turn it on for a run that is meant to demonstrate image
+    # coverage, with show_coverage:=true on handeye_calibration.launch.py.
+    # The collector measures coverage numerically regardless.
+    draw_coverage_trail: false
+    coverage_trail_limit: 400
+
+handeye_pose_collector:
+  ros__parameters:
+    base_frame: base_link
+    end_effector_frame: link6_flange
+    marker_frame: aruco_marker_link
+    planning_group: arm
+    target_pose_topic: /aruco_detector/target_pose
+    output_file: /tmp/handeye_dataset.json
+
+    # Rough guess at where the camera is and how it is aimed, used only to plan
+    # where the target will land in the image. It does not enter the
+    # calibration, so an error here costs coverage, not accuracy. On real
+    # hardware take it from CAD or a tape measure.
+    # This is the CAMERA, not the stand: camera_head_joint puts the optical
+    # frame 0.01 m along +Y from the stand, so stand (0.287, -0.209, 0.281)
+    # gives the camera below.
+    nominal_camera_position: [0.22, 0.335, 0.50]
+    # Matches camera_tilt_deg:=23.16 camera_pan_deg:=55.26 in the URDF. If the
+    # camera aim is changed there, change it here too or the image-space
+    # plan back-projects through the wrong direction.
+    nominal_camera_rpy_deg: [-122.00, 0.0, 147.48]
+
+    # Nominal intrinsics for back-projection; must match the URDF camera.
+    image_width: 848
+    image_height: 480
+    camera_hfov: 1.5184
+
+    # Coverage is planned in IMAGE space. Each candidate is a pixel plus a
+    # distance, back-projected to a 3D point, so tiling this grid tiles the
+    # picture -- edges and corners included.
+    #
+    # The previous version sampled a box in the robot's workspace and merely
+    # aimed the target at the camera. That controls nothing about where the
+    # target appears: it delivered 21% of the image width, 4 of 12 cells, and
+    # nothing near an edge. Corner localisation and lens distortion both vary
+    # across the field, so a calibration fitted from one patch of the image is
+    # only trustworthy in that patch.
+    #
+    # 8x6 rather than 6x5 because the plate is now 139.5 mm. The border inset
+    # scales with the plate, so a bigger target near the frame edge is clipped
+    # -- and a clipped single ArUco yields NO detection, not a degraded one.
+    # A finer grid gives the planner more positions to find one that fits at
+    # each distance, which is what keeps all 12 cells reachable with a plate
+    # this size. At 6x5 the 139.5 mm plate reached only 6 of 12.
+    image_grid: [8, 6]        # 48 positions tiling the frame
+
+    # How far along each camera ray the marker can sit. The camera frustum is
+    # far larger than a 280 mm arm's workspace, so fixed distances waste almost
+    # every candidate -- a first attempt at three fixed distances left 6 of 60
+    # reachable. Each ray is intersected with this sphere instead, and sampled
+    # inside it, which also gives the distance variety the dataset needs.
+    workspace_centre: [0.0, 0.0, 0.1316]   # roughly the shoulder
+    workspace_radius_max: 0.26
+    workspace_radius_min: 0.10
+    # How many distances to sample along each ray's chord through the reachable
+    # sphere. The endpoints are dropped (the ray is tangent to the volume
+    # there), so with N samples the closest one sits 1/(N+1) of the way along
+    # the chord -- at N=3 that discarded the whole near quarter of the arm's
+    # reach, and with it the close-up views where the board fills the frame.
+    # The nearest planned pose was 0.43 m when the arm could reach 0.30 m.
+    # N=7 brings that to 1/8 of the chord.
+    samples_per_ray: 7
+    min_marker_height: 0.02                # keep the plate above the table
+
+    # Border inset as a multiple of the plate's on-screen half-size. Above 1.0
+    # because a rolled plate's bounding box is larger than the square: at the
+    # +/-30 deg of roll_angles_deg it grows by cos30 + sin30 = 1.37, so 1.6
+    # clears it with margin.
+    #
+    # The inset is applied PER DISTANCE, not once for the whole sweep. A plate
+    # of fixed size subtends fewer pixels the further away it is, so a distant
+    # sample can be planned closer to the border than a near one, and pinning
+    # the inset at one nominal range needlessly keeps the far samples away from
+    # the edges. Raising this costs edge coverage at every range at once.
+    edge_safety: 1.6
+
+    # Overall size of the target actually fitted, since the border inset is
+    # computed from it. 0.0960 for the ArUco plate (1.2x the 0.080 black
+    # square, the quiet zone being 0.10 of the marker edge on every side),
+    # 0.121 for the ChArUco one.
+    #
+    # The quiet zone cannot go to zero: measured in the container's OpenCV,
+    # a marker whose black border touches the geometry edge yields FOUR
+    # rejected candidates and no detection, because there is nothing to
+    # segment the border against. 0.05 still detects; 0.10 leaves margin.
+    #
+    # Unlike the detector's marker_size, a wrong value here does NOT corrupt
+    # the calibration -- the plate is only used to keep the target clear of
+    # the frame border, so an error costs coverage, never accuracy.
+    marker_size: 0.0960
+
+    # Candidates are generated distance by distance, so a fixed-seed shuffle
+    # keeps a max_poses cut-off from collecting only the nearest shell.
+    shuffle_seed: 0
+
+    # Rotation variety is what makes the solve well posed. Poses that only
+    # translate leave the rotation underdetermined no matter how many are
+    # collected, so every grid point also gets a tilt and a roll.
+    #
+    # The tilt is applied about BOTH of the plate's in-plane axes, so these
+    # three angles give 3 x 3 x 3 = 27 distinct perturbations cycled across the
+    # grid. One tilt axis is not enough: the relative rotations then span a
+    # rank-deficient set of axes, and a planar target held nearly
+    # fronto-parallel is also exactly where a planar pose solve is most
+    # ambiguous. The collector reports the conditioning it achieved.
+    tilt_angles_deg: [-20.0, 0.0, 20.0]
+    roll_angles_deg: [-30.0, 0.0, 30.0]
+
+    # Deliberate close-ups: "bring the arm as close to the camera as possible
+    # so the board covers as much of the image as possible".
+    #
+    # The image grid cannot deliver these. Its border inset scales with the
+    # plate's on-screen size, so past a point every candidate at that distance
+    # is rejected for not fitting inside the margin: with edge_safety 1.6 and
+    # a 139.5 mm plate the grid stops at 0.208 m and 62% of the frame height,
+    # while the arm can reach 0.140 m. These poses are planned separately at
+    # the distance that fills close_up_fill of the frame, near the centre, and
+    # are placed at the front of the plan so max_poses cannot discard them.
+    #
+    # Roll is suppressed for them (see pose_planning): roll is what makes a
+    # square's bounding box bigger than the square, and at this size a rolled
+    # plate overhangs the frame. Tilt is kept, so they still contribute
+    # rotation variety rather than a stack of fronto-parallel views.
+    close_up_poses: 6
+    # How much border, in pixels, the plate must keep at the closest pose.
+    #
+    # These poses go AS CLOSE AS THE ARM CAN REACH, and this is the only thing
+    # holding them back: a single ArUco touching the frame edge yields NO
+    # detection at all rather than a degraded one. The margin is what absorbs
+    # the arm's execution error, so it is set from that -- 20 px is 6.3 mm of
+    # lateral miss at this working distance, against the 2-5 mm the arm
+    # actually delivers, and still fills ~92% of the frame height.
+    #
+    # Stated as a margin rather than a target fill on purpose: the risk is
+    # clipping, and clipping is a pixel budget. An earlier version asked for
+    # 80% fill, which quietly reserved 17 mm of tolerance for a 5 mm error and
+    # gave away 12 points of coverage for nothing.
+    close_up_margin_px: 20.0
+
+    # 20 to 40 views is the usual rule of thumb: enough to average down corner
+    # noise, not so many that the sweep outlasts anyone's patience. Held at the
+    # top of that range. The plan now offers 262 candidates rather than 28, so
+    # this is a genuine cap rather than a ceiling the planner cannot reach --
+    # the shuffle below is what keeps the 40 that are kept spread across the
+    # image and the distance range instead of clustered in one shell.
+    max_poses: 40
+
+    settle_time: 1.5           # let the arm stop ringing before looking
+    samples_per_pose: 8        # averaged; ArUco corner noise is ~zero-mean
+    sample_timeout: 8.0
+
+    # Give up on a pose that yields nothing at all after this long. At the 4 Hz
+    # this camera renders, 2 s is 8 frame periods: if the marker were in view
+    # it would already have been seen. Poses that are reachable but point the
+    # plate out of frame are common at the edges of the candidate box, and
+    # waiting out sample_timeout on each one dominates a sweep's runtime.
+    no_detection_timeout: 2.0
+
+    # Reject a pose whose detections disagree with each other: that means the
+    # marker was marginal or partly occluded, and the outlier would survive
+    # into the solve, which has no outlier rejection of its own.
+    max_translation_spread: 0.004
+    max_rotation_spread_deg: 3.0
+
+    planning_time: 5.0
+    velocity_scaling: 0.3

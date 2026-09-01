@@ -1,0 +1,96 @@
+<?xml version="1.0"?>
+<!--
+  ArUco calibration target for eye-to-hand calibration.
+
+  In the eye-to-hand variant the camera is fixed to the world and the target
+  rides on the robot, so this plate is bolted to the flange and swept through
+  the camera's view by moving the arm.
+
+  Mounting. The plate is bolted flat to the flange face and looks along the
+  tool approach axis (flange +Z), so it points wherever the end effector
+  points. Aiming the tool at the camera therefore aims the target at it, which
+  is what makes the sweep easy to reason about and keeps the plate in front of
+  the arm rather than behind it, unoccluded.
+
+  An earlier default turned the plate around to face flange -Z. At the zero
+  configuration that happens to face the camera stand directly, but it means
+  the target looks backwards along the tool for every other pose, and the
+  printed face is turned away from the end effector's own working direction.
+
+  Everything is overridable so the plate can be re-aimed without editing this
+  file, by passing aruco_marker_xyz and aruco_marker_rpy to xacro. Note the
+  default assumes no gripper (the calibration launch uses use_gripper:=false):
+  the gripper body also extends along flange +Z from z = 0.034, so with one
+  fitted, move the plate clear of it, for example
+
+      aruco_marker_xyz:="0 -0.05 0.01"
+
+  which puts it on a bracket to the side, still facing along the tool.
+
+  The mesh has no collision geometry and negligible inertia. Collision is
+  deliberately omitted: a plate this size on the flange would generate phantom
+  self-collisions against link3/link4 in folded poses and make MoveIt refuse
+  to plan out of them, exactly as the gripper geometry once did.
+-->
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro">
+
+  <xacro:arg name="use_aruco_marker" default="false"/>
+  <!--
+    id 3 of DICT_6X6_250, matching the printed marker this rig is calibrated
+    against, so the simulated target and the physical one are the same marker
+    and a dataset from either is interpretable the same way.
+
+    The id must differ from the validation object's (id 1, see
+    validate_calibration.launch.py): both are in view during validation, and
+    the detector selects by id. To use a different id, regenerate the asset
+    with scripts/generate_aruco_target.py (its id option), point this default
+    at the new .dae, and set marker_id in config/handeye_calibration.yaml to
+    the same number. All three have to agree.
+  -->
+  <xacro:arg name="aruco_marker_mesh"
+             default="aruco_dict_6x6_250_id3.dae"/>
+  <xacro:arg name="aruco_marker_parent" default="link6_flange"/>
+  <xacro:arg name="aruco_marker_xyz" default="0 0 0.012"/>
+  <xacro:arg name="aruco_marker_rpy" default="0 0 0"/>
+  <xacro:arg name="prefix" default=""/>
+
+  <xacro:if value="$(arg use_aruco_marker)">
+
+    <!--
+      The plate's own frame matches the pose OpenCV reports for a detected
+      marker: origin at the marker centre, +X along the top edge to the right,
+      +Y up, +Z out of the printed face. Publishing it as a real TF frame means
+      the calibration result can be checked against ground truth directly.
+    -->
+    <link name="$(arg prefix)aruco_marker_link">
+      <visual>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <geometry>
+          <mesh filename="file://$(find mycobot_description)/meshes/aruco_marker/$(arg aruco_marker_mesh)"/>
+        </geometry>
+      </visual>
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.005"/>
+        <inertia ixx="1.5e-6" ixy="0.0" ixz="0.0"
+                 iyy="1.5e-6" iyz="0.0" izz="3.0e-6"/>
+      </inertial>
+    </link>
+
+    <joint name="$(arg prefix)aruco_marker_joint" type="fixed">
+      <parent link="$(arg prefix)$(arg aruco_marker_parent)"/>
+      <child link="$(arg prefix)aruco_marker_link"/>
+      <origin xyz="$(arg aruco_marker_xyz)" rpy="$(arg aruco_marker_rpy)"/>
+    </joint>
+
+    <!--
+      No <gazebo reference> material block here, deliberately. Declaring one
+      makes Ignition override the mesh's own effect, and the plate renders as a
+      flat grey square with no marker on it at all: the geometry is visible,
+      the detector finds nothing, and there is no error anywhere to explain it.
+      The COLLADA file already carries the textured lambert effect, so the
+      correct thing is to leave the mesh's material alone.
+    -->
+
+  </xacro:if>
+</robot>

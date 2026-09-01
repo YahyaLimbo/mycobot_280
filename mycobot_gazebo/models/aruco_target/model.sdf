@@ -1,0 +1,42 @@
+<?xml version="1.0" ?>
+<!--
+  A standalone ArUco-tagged object for validating a hand-eye calibration.
+
+  Carries marker id 1, distinct from the id 0 target on the flange, so the two
+  never have to be told apart by position and either can be detected while the
+  other is in frame.
+
+  The plate's printed face is its local +Z. The tilt that makes it face the
+  camera is applied at spawn time rather than baked in here, so one model can
+  be placed at several poses in a single validation run.
+
+  Static, because the whole point is to compare a detection against a known
+  pose: anything that could settle, roll or be nudged by a contact would make
+  the ground truth a guess.
+-->
+<sdf version="1.6">
+  <model name="aruco_target">
+    <static>true</static>
+    <link name="plate">
+
+      <visual name="plate_visual">
+        <geometry>
+          <mesh>
+            <uri>model://aruco_target/meshes/aruco_dict_6x6_250_id1.dae</uri>
+          </mesh>
+        </geometry>
+      </visual>
+
+      <!-- A thin slab behind the printed face, so the object has physical
+           extent for the arm to approach without the collision box standing
+           proud of the surface the detector reports. -->
+      <collision name="plate_collision">
+        <pose>0 0 -0.005 0 0 0</pose>
+        <geometry>
+          <box><size>0.12 0.12 0.01</size></box>
+        </geometry>
+      </collision>
+
+    </link>
+  </model>
+</sdf>
