@@ -73,13 +73,23 @@ class PoseCollectorNode(Node):
         # the image. It is a rough prior -- from CAD or a tape measure on real
         # hardware -- and never enters the calibration itself.
         # These defaults are the calibration.world rig's actual optical frame,
-        # i.e. camera_tilt_deg:=23.16 camera_pan_deg:=55.26 in the URDF, and
-        # the stand at (0.287, -0.209, 0.281) plus the 0.01 m +Y offset that
-        # camera_head_joint adds. They have twice been left behind when the
-        # camera moved, which only bites a run started without the config
-        # file: the plan then back-projects through the wrong direction and
-        # the sweep quietly covers the wrong part of the frame. Update them
-        # here AND in config/handeye_calibration.yaml whenever the stand moves.
+        # i.e. camera_tilt_deg:=24.45 camera_pan_deg:=119.14 in the URDF, and
+        # the stand at (0.287, 0.160, 0.450) plus the 0.01 m +Y offset that
+        # camera_head_joint adds and the -0.025 of camera_offset_y.
+        #
+        # These have three times been left behind when the camera moved. The
+        # third time the xacro and this file were both updated and the two
+        # LAUNCH files were not; they declare their own camera_stand_*
+        # defaults and pass them to xacro, so the launch defaults win and
+        # Gazebo kept rendering the old camera while the planner used the new
+        # one. Every pose still detected and coverage collapsed to 4 of 12
+        # cells, which is the signature of this mistake: a wrong nominal
+        # camera costs coverage, never accuracy.
+        #
+        # Six places have to agree. After changing any of them, check the
+        # RUNNING system rather than the generated URDF:
+        #
+        #   ros2 run tf2_ros tf2_echo base_link camera_head_depth_optical_frame
         self.declare_parameter('nominal_camera_position', [0.287, 0.145, 0.450])
         self.declare_parameter('nominal_camera_rpy_deg', [-114.45, 0.0, 119.14])
 

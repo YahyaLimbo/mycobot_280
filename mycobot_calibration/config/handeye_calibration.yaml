@@ -50,14 +50,27 @@ aruco_detector:
     marker_id: 3
     # Edge length of the black marker square, NOT the white plate around it.
     # Must match generate_aruco_target.py --marker-size, and the plate it
-    # implies (1.2x this at border-ratio 0.10, so 0.0960) must match
+    # implies (1.2x this at border-ratio 0.10, so 0.1200) must match
     # marker_size in the collector
     # block below, which uses the plate to keep it clear of the frame border.
     #
     # THIS MUST EQUAL THE PRINTED SQUARE. It is the one value that scales every
     # distance the detector reports, with nothing ever looking wrong: get it
-    # 1% off and every translation is 1% off, permanently. 0.080 is the
-    # measured edge of the physical marker this rig is calibrated against.
+    # 1% off and every translation is 1% off, permanently.
+    #
+    # 0.100 REQUIRES A 100 mm PRINTED MARKER. It was raised from the measured
+    # 0.080 on 2026-09-02 to satisfy the "board covering entire image" rule:
+    # a bigger board fills more of the frame at the same camera distance, and
+    # that was preferable to moving the camera closer, which measurably hurt
+    # the calibration (see the camera-distance experiment in the README).
+    #
+    # THE PRINTED TARGET MUST BE REGENERATED AND REPRINTED TO MATCH:
+    #
+    #   python3 scripts/generate_aruco_target.py --id 3 \
+    #       --marker-size 0.100 --border-ratio 0.10
+    #
+    # Until that is done the simulated target and the physical one are
+    # different objects, and a sim-derived calibration will not transfer.
     #
     # It was briefly set to 0.093 (2026-08-30/31) to make the board fill more
     # of the frame for the "board covers the entire image" rule. That was a
@@ -75,7 +88,10 @@ aruco_detector:
     #   0.040  ~58 px  +1.90% of range
     #   0.055  ~80 px  +1.43% of range
     #   0.080  (measured off the printed target; bias not re-measured)
-    marker_size: 0.080
+    #   0.100  ~186 px  +0.32% of range  (measured 2026-09-02 against
+    #           forward kinematics over 5 close-up poses; the trend holds --
+    #           the bias shrinks with marker PIXELS, not marker metres)
+    marker_size: 0.100
 
     # 'computed' derives K from the image size and camera_hfov below.
     # 'camera_info' uses the published intrinsics.
@@ -146,12 +162,12 @@ handeye_pose_collector:
     # across the field, so a calibration fitted from one patch of the image is
     # only trustworthy in that patch.
     #
-    # 8x6 rather than 6x5 because the plate is now 139.5 mm. The border inset
+    # 8x6 rather than 6x5 because the plate is large. The border inset
     # scales with the plate, so a bigger target near the frame edge is clipped
     # -- and a clipped single ArUco yields NO detection, not a degraded one.
     # A finer grid gives the planner more positions to find one that fits at
     # each distance, which is what keeps all 12 cells reachable with a plate
-    # this size. At 6x5 the 139.5 mm plate reached only 6 of 12.
+    # this size. At 6x5 a 139.5 mm plate reached only 6 of 12.
     image_grid: [8, 6]        # 48 positions tiling the frame
 
     # How far along each camera ray the marker can sit. The camera frustum is
@@ -185,7 +201,7 @@ handeye_pose_collector:
     edge_safety: 1.6
 
     # Overall size of the target actually fitted, since the border inset is
-    # computed from it. 0.0960 for the ArUco plate (1.2x the 0.080 black
+    # computed from it. 0.1200 for the ArUco plate (1.2x the 0.100 black
     # square, the quiet zone being 0.10 of the marker edge on every side),
     # 0.121 for the ChArUco one.
     #
@@ -197,7 +213,7 @@ handeye_pose_collector:
     # Unlike the detector's marker_size, a wrong value here does NOT corrupt
     # the calibration -- the plate is only used to keep the target clear of
     # the frame border, so an error costs coverage, never accuracy.
-    marker_size: 0.0960
+    marker_size: 0.1200
 
     # Candidates are generated distance by distance, so a fixed-seed shuffle
     # keeps a max_poses cut-off from collecting only the nearest shell.
@@ -222,7 +238,7 @@ handeye_pose_collector:
     # The image grid cannot deliver these. Its border inset scales with the
     # plate's on-screen size, so past a point every candidate at that distance
     # is rejected for not fitting inside the margin: with edge_safety 1.6 and
-    # a 139.5 mm plate the grid stops at 0.208 m and 62% of the frame height,
+    # a 139.5 mm plate the grid stopped at 0.208 m and 62% of the frame height,
     # while the arm can reach 0.140 m. These poses are planned separately at
     # the distance that fills close_up_fill of the frame, near the centre, and
     # are placed at the front of the plan so max_poses cannot discard them.
