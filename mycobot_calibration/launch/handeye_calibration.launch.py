@@ -39,9 +39,35 @@ def generate_launch_description():
     dataset_file = LaunchConfiguration('dataset_file')
     run_collector = LaunchConfiguration('run_collector')
 
+    # True in simulation, where Gazebo owns the clock. It must be FALSE on real
+    # hardware: with no /clock publisher a node started with use_sim_time stays
+    # frozen at time zero, so every TF lookup, settle_time and sample timeout
+    # waits forever and the sweep looks hung rather than failing.
+    sim_time = ParameterValue(
+        LaunchConfiguration('use_sim_time'), value_type=bool)
+
+    declare_sim_time = DeclareLaunchArgument(
+        'use_sim_time', default_value='true',
+        description='Take time from /clock. Leave true for Gazebo; set false '
+                    'when running against the physical arm.')
+
     declare_config = DeclareLaunchArgument(
         'config_file', default_value=default_config,
         description='Parameter file for the detector and collector.')
+
+    # A second parameter file, layered over config_file. ROS 2 merges parameter
+    # files in order, so this lets the physical rig change the handful of values
+    # that differ -- real intrinsics, the colour FOV and optical frame, the
+    # printed marker size -- without duplicating a long annotated config and
+    # letting the two drift apart. Defaults to an empty file, so simulation is
+    # unaffected.
+    overrides_file = LaunchConfiguration('overrides_file')
+
+    declare_overrides = DeclareLaunchArgument(
+        'overrides_file',
+        default_value=os.path.join(pkg_share, 'config', 'no_overrides.yaml'),
+        description='Parameter file layered over config_file. Pass '
+                    'config/hardware_overrides.yaml for the physical rig.')
 
     declare_dataset = DeclareLaunchArgument(
         'dataset_file', default_value='/tmp/handeye_dataset.json',
@@ -69,7 +95,7 @@ def generate_launch_description():
         condition=IfCondition(LaunchConfiguration('show_detections')),
         arguments=['-d', os.path.join(pkg_share, 'rviz',
                                       'handeye_calibration.rviz')],
-        parameters=[{'use_sim_time': True}],
+        parameters=[{'use_sim_time': sim_time}],
     )
 
     declare_show_coverage = DeclareLaunchArgument(
@@ -87,7 +113,8 @@ def generate_launch_description():
         output='screen',
         parameters=[
             config_file,
-            {'use_sim_time': True,
+            overrides_file,
+            {'use_sim_time': sim_time,
              'draw_coverage_trail': ParameterValue(
                  LaunchConfiguration('show_coverage'), value_type=bool)},
         ],
@@ -101,7 +128,8 @@ def generate_launch_description():
         condition=IfCondition(run_collector),
         parameters=[
             config_file,
-            {'use_sim_time': True, 'output_file': dataset_file},
+            overrides_file,
+            {'use_sim_time': sim_time, 'output_file': dataset_file},
         ],
     )
 
@@ -115,7 +143,9 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        declare_sim_time,
         declare_config,
+        declare_overrides,
         declare_dataset,
         declare_run_collector,
         declare_show_detections,

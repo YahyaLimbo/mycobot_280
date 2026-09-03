@@ -139,10 +139,10 @@ def generate_launch_description():
     # GUI, since robot_state_publisher would keep publishing its TF from the
     # URDF and the images would no longer agree with the frame they claim.
     declare_camera_tilt = DeclareLaunchArgument(
-        name='camera_tilt_deg', default_value='24.45',
+        name='camera_tilt_deg', default_value='23.97',
         description='Camera pitch, degrees below horizontal.')
     declare_camera_pan = DeclareLaunchArgument(
-        name='camera_pan_deg', default_value='119.14',
+        name='camera_pan_deg', default_value='162.13',
         description='Camera yaw about base +Z, degrees.')
     declare_camera_offset_x = DeclareLaunchArgument(
         name='camera_offset_x', default_value='0.0',
@@ -155,13 +155,13 @@ def generate_launch_description():
         name='camera_offset_z', default_value='0.0',
         description='Camera offset from the stand top, m.')
     declare_camera_stand_x = DeclareLaunchArgument(
-        name='camera_stand_x', default_value='0.287',
+        name='camera_stand_x', default_value='0.1666',
         description='Camera stand X in base_link, metres.')
     declare_camera_stand_y = DeclareLaunchArgument(
-        name='camera_stand_y', default_value='0.160',
+        name='camera_stand_y', default_value='0.2575',
         description='Camera stand Y in base_link, metres.')
     declare_camera_stand_z = DeclareLaunchArgument(
-        name='camera_stand_z', default_value='0.45',
+        name='camera_stand_z', default_value='0.4330',
         description='Camera height above the stand base, metres.')
     declare_camera_hfov = DeclareLaunchArgument(
         name='camera_hfov', default_value='1.5184',
@@ -525,7 +525,7 @@ def generate_launch_description():
     )
 
     # Robot spawner — wrapped in OpaqueFunction so we can auto-raise z to
-    # 0.425 (on top of the calibration table) when world_file:=calibration.world
+    # 0.460 (on top of the calibration table) when world_file:=calibration.world
     # is selected and the user did not override z explicitly.
     def make_robot_spawner(context):
         use_sim_str = LaunchConfiguration('use_sim').perform(context)
@@ -536,8 +536,33 @@ def generate_launch_description():
         # If user kept the default z (0.05) and selected calibration.world,
         # raise the robot to sit on the 0.4 m-high table top, whose surface is
         # at 0.425 (box centred at 0.4, 0.05 thick).
+        #
+        # base_link is NOT the bottom of the chassis. The g_shape_base mesh
+        # is millimetres (<unit meter="0.001">, Z_UP) spanning -0.055..+0.055,
+        # and its visual origin adds another -0.03, so the chassis bottom sits
+        # 0.085 BELOW base_link. Seating it exactly on the 0.425 table top
+        # therefore needs spawn z = 0.510.
+        #
+        # 0.460 is where this currently sits, still being tuned by eye. It
+        # leaves the chassis bottom at 0.375, i.e. 0.05 inside the table.
+        # Nothing downstream cares, because the calibration only ever sees
+        # base_link -> camera, so this is presentation only.
+        #
+        # camera_stand_drop in the intel_rgbd_cam_d435 xacro must be kept equal
+        # to (this value - 0.425) or the camera stand floats above the table or
+        # sinks into it. It is 0.035 to match 0.460.
+        #
+        # This raises the CAMERA too -- the stand is a child of base_link via
+        # base_link_to_torso_link -- and that is deliberate. base_link -> camera
+        # is the only geometry the calibration sees, and it is set to the pose
+        # measured on the physical rig; lifting both together preserves it.
+        # Holding the camera at a fixed world height would mean lowering
+        # camera_stand_z by the same amount, which would break that match.
+        #
+        # robot_base_z in validate_calibration.launch.py converts Gazebo world
+        # coordinates to base_link and MUST be kept equal to this.
         if world_str == 'calibration.world' and z_str == '0.05':
-            z_str = '0.425'
+            z_str = '0.460'
         return [Node(
             package='ros_ign_gazebo',
             executable='create',

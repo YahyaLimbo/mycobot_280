@@ -1,0 +1,88 @@
+[INFO] [launch]: All log files can be found below /root/.ros/log/2026-09-01-13-49-28-221496-yahya-ROG-Strix-SCAR-18-G835LX-G835LX-2615
+[INFO] [launch]: Default logging verbosity is set to INFO
+[INFO] [aruco_detector-1]: process started with pid [2654]
+[INFO] [pose_collector-2]: process started with pid [2656]
+[aruco_detector-1] [INFO] [1788270568.722588392] [aruco_detector]: aruco detector up: dictionary=DICT_6X6_250, publishing poses in 'camera_head_depth_optical_frame'
+[pose_collector-2] [INFO] [1788270568.782906254] [handeye_pose_collector]: waiting for move_group and TF...
+[pose_collector-2] [INFO] [1788270568.785315582] [handeye_pose_collector]: marker is mounted at [0.0, 0.0, 0.012] in link6_flange
+[pose_collector-2] [INFO] [1788270568.799996403] [handeye_pose_collector]: 22/48 image positions fall inside the arm workspace, giving 148 candidate poses
+[pose_collector-2] [WARN] [1788270568.800309932] [handeye_pose_collector]: 26 of 48 image positions are out of the arm's reach, so that part of the frame cannot be covered by any pose set. Move the camera closer, re-aim it, or narrow its field of view so the workspace fills more of the view.
+[pose_collector-2] [INFO] [1788270568.800556155] [handeye_pose_collector]: 148 candidate marker poses
+[aruco_detector-1] [INFO] [1788270568.925743387] [aruco_detector]: Using intrinsics computed from 848x480 and hfov 1.5184 rad: fx=fy=446.82, cx=424.0, cy=240.0
+[aruco_detector-1] [INFO] [1788270568.960877403] [aruco_detector]: marker 3 at (+0.035, -0.065, +0.241) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270575.967137512] [handeye_pose_collector]: captured 1/40 (pose 0, 8 detections)
+[aruco_detector-1] [INFO] [1788270582.198869993] [aruco_detector]: marker 3 at (+0.038, +0.004, +0.214) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270583.002651541] [handeye_pose_collector]: captured 2/40 (pose 1, 8 detections)
+[pose_collector-2] [INFO] [1788270590.223418125] [handeye_pose_collector]: captured 3/40 (pose 2, 8 detections)
+[aruco_detector-1] [INFO] [1788270593.632877220] [aruco_detector]: marker 3 at (-0.019, -0.051, +0.257) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270599.446744295] [handeye_pose_collector]: captured 4/40 (pose 3, 8 detections)
+[pose_collector-2] [INFO] [1788270605.467328637] [handeye_pose_collector]: captured 5/40 (pose 4, 8 detections)
+[aruco_detector-1] [INFO] [1788270610.288620001] [aruco_detector]: marker 3 at (+0.038, -0.003, +0.226) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270613.091561264] [handeye_pose_collector]: captured 6/40 (pose 5, 8 detections)
+[pose_collector-2] [INFO] [1788270623.730936699] [handeye_pose_collector]: captured 7/40 (pose 6, 8 detections)
+[aruco_detector-1] [INFO] [1788270631.346413907] [aruco_detector]: marker 3 at (+0.166, +0.062, +0.318) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270633.353441607] [handeye_pose_collector]: captured 8/40 (pose 7, 8 detections)
+[pose_collector-2] [INFO] [1788270640.172362693] [handeye_pose_collector]: captured 9/40 (pose 8, 8 detections)
+[aruco_detector-1] [INFO] [1788270646.787219314] [aruco_detector]: marker 3 at (+0.144, +0.020, +0.283) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270648.994401484] [handeye_pose_collector]: captured 10/40 (pose 11, 8 detections)
+[aruco_detector-1] [INFO] [1788270658.625213831] [aruco_detector]: marker 3 at (-0.177, +0.039, +0.507) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270660.027882223] [handeye_pose_collector]: captured 11/40 (pose 12, 8 detections)
+[pose_collector-2] [WARN] [1788270665.581639223] [handeye_pose_collector]: pose 13: only 0 detections
+[pose_collector-2] [INFO] [1788270672.261878651] [handeye_pose_collector]: captured 12/40 (pose 14, 8 detections)
+[aruco_detector-1] [INFO] [1788270681.688455911] [aruco_detector]: marker 3 at (+0.115, +0.014, +0.290) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270685.298534960] [handeye_pose_collector]: captured 13/40 (pose 18, 8 detections)
+[pose_collector-2] [INFO] [1788270693.118857496] [handeye_pose_collector]: captured 14/40 (pose 19, 8 detections)
+[aruco_detector-1] [INFO] [1788270694.121369094] [aruco_detector]: marker 3 at (+0.096, -0.089, +0.384) m in camera_head_depth_optical_frame
+[pose_collector-2] [WARN] [1788270700.499304504] [handeye_pose_collector]: pose 20: only 0 detections
+[pose_collector-2] [INFO] [1788270708.562427552] [handeye_pose_collector]: captured 15/40 (pose 21, 8 detections)
+[aruco_detector-1] [INFO] [1788270709.564403023] [aruco_detector]: marker 3 at (+0.107, +0.051, +0.290) m in camera_head_depth_optical_frame
+[pose_collector-2] [WARN] [1788270716.136999348] [handeye_pose_collector]: pose 22: only 0 detections
+[pose_collector-2] [INFO] [1788270724.406629025] [handeye_pose_collector]: captured 16/40 (pose 24, 8 detections)
+[pose_collector-2] [INFO] [1788270731.026931309] [handeye_pose_collector]: captured 17/40 (pose 25, 8 detections)
+[aruco_detector-1] [INFO] [1788270731.648140003] [aruco_detector]: marker 3 at (-0.133, +0.076, +0.259) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270743.260550689] [handeye_pose_collector]: captured 18/40 (pose 28, 8 detections)
+[aruco_detector-1] [INFO] [1788270750.279269142] [aruco_detector]: marker 3 at (+0.056, -0.039, +0.495) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270752.486317539] [handeye_pose_collector]: captured 19/40 (pose 30, 8 detections)
+[aruco_detector-1] [INFO] [1788270761.711950953] [aruco_detector]: marker 3 at (+0.170, +0.020, +0.316) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270763.717190286] [handeye_pose_collector]: captured 20/40 (pose 32, 8 detections)
+[pose_collector-2] [WARN] [1788270773.889926999] [handeye_pose_collector]: pose 33: only 0 detections
+[pose_collector-2] [INFO] [1788270783.978356153] [handeye_pose_collector]: captured 21/40 (pose 35, 8 detections)
+[pose_collector-2] [WARN] [1788270790.368178219] [handeye_pose_collector]: pose 36: only 0 detections
+[aruco_detector-1] [INFO] [1788270799.624088567] [aruco_detector]: marker 3 at (+0.039, -0.076, +0.373) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270802.233610143] [handeye_pose_collector]: captured 22/40 (pose 39, 8 detections)
+[pose_collector-2] [INFO] [1788270812.660285771] [handeye_pose_collector]: captured 23/40 (pose 40, 8 detections)
+[aruco_detector-1] [INFO] [1788270821.082914126] [aruco_detector]: marker 3 at (-0.132, +0.080, +0.397) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270822.687869839] [handeye_pose_collector]: captured 24/40 (pose 41, 8 detections)
+[pose_collector-2] [INFO] [1788270829.909191470] [handeye_pose_collector]: captured 25/40 (pose 42, 8 detections)
+[aruco_detector-1] [INFO] [1788270831.712934851] [aruco_detector]: marker 3 at (-0.054, -0.022, +0.291) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270835.725050995] [handeye_pose_collector]: captured 26/40 (pose 43, 8 detections)
+[pose_collector-2] [INFO] [1788270843.546896150] [handeye_pose_collector]: captured 27/40 (pose 44, 8 detections)
+[aruco_detector-1] [INFO] [1788270844.370922501] [aruco_detector]: marker 3 at (-0.164, +0.103, +0.308) m in camera_head_depth_optical_frame
+[pose_collector-2] [WARN] [1788270852.401874368] [handeye_pose_collector]: pose 46: only 0 detections
+[pose_collector-2] [INFO] [1788270861.799066824] [handeye_pose_collector]: captured 28/40 (pose 47, 8 detections)
+[pose_collector-2] [INFO] [1788270872.026777576] [handeye_pose_collector]: captured 29/40 (pose 48, 8 detections)
+[aruco_detector-1] [INFO] [1788270872.225337391] [aruco_detector]: marker 3 at (-0.110, +0.067, +0.350) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270879.645490811] [handeye_pose_collector]: captured 30/40 (pose 50, 8 detections)
+[aruco_detector-1] [INFO] [1788270885.065017392] [aruco_detector]: marker 3 at (+0.182, +0.027, +0.340) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270886.468141111] [handeye_pose_collector]: captured 31/40 (pose 51, 8 detections)
+[pose_collector-2] [INFO] [1788270893.286108107] [handeye_pose_collector]: captured 32/40 (pose 53, 8 detections)
+[aruco_detector-1] [INFO] [1788270896.292958522] [aruco_detector]: marker 3 at (+0.060, +0.053, +0.611) m in camera_head_depth_optical_frame
+[pose_collector-2] [WARN] [1788270906.069760542] [handeye_pose_collector]: pose 56: only 0 detections
+[pose_collector-2] [INFO] [1788270916.552029322] [handeye_pose_collector]: captured 33/40 (pose 57, 8 detections)
+[aruco_detector-1] [INFO] [1788270917.754222550] [aruco_detector]: marker 3 at (+0.139, -0.040, +0.327) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270926.983076139] [handeye_pose_collector]: captured 34/40 (pose 58, 8 detections)
+[pose_collector-2] [INFO] [1788270937.411576321] [handeye_pose_collector]: captured 35/40 (pose 59, 8 detections)
+[aruco_detector-1] [INFO] [1788270938.610624924] [aruco_detector]: marker 3 at (+0.203, +0.077, +0.376) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270947.638313751] [handeye_pose_collector]: captured 36/40 (pose 62, 8 detections)
+[aruco_detector-1] [INFO] [1788270953.251851125] [aruco_detector]: marker 3 at (-0.156, +0.054, +0.299) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270955.457883791] [handeye_pose_collector]: captured 37/40 (pose 63, 8 detections)
+[pose_collector-2] [INFO] [1788270963.880675119] [handeye_pose_collector]: captured 38/40 (pose 64, 8 detections)
+[aruco_detector-1] [INFO] [1788270970.101236405] [aruco_detector]: marker 3 at (-0.210, +0.141, +0.382) m in camera_head_depth_optical_frame
+[pose_collector-2] [INFO] [1788270971.304142504] [handeye_pose_collector]: captured 39/40 (pose 65, 8 detections)
+[pose_collector-2] [INFO] [1788270980.929239086] [handeye_pose_collector]: captured 40/40 (pose 66, 8 detections)
+[pose_collector-2] [INFO] [1788270980.944212748] [handeye_pose_collector]: coverage: 40 views | 9/12 cells (7/10 edge, 2/2 centre) | centres over 58% x 53% of frame | board fills up to 41% of height (median 25%) | 0.22-0.62 m (2.88x) | rel. rotation median 49 deg, axis conditioning 0.78
+[pose_collector-2] [INFO] [1788270980.947673176] [handeye_pose_collector]: dataset written to /tmp/handeye_dataset_new.json
+[pose_collector-2] [INFO] [1788270980.948152054] [handeye_pose_collector]: done: 40 samples from 67 candidates (20 unreachable, 0 motion failures, 7 vision failures)
+[INFO] [pose_collector-2]: process has finished cleanly [pid 2656]
+[INFO] [aruco_detector-1]: sending signal 'SIGINT' to process[aruco_detector-1]
+[INFO] [aruco_detector-1]: process has finished cleanly [pid 2654]

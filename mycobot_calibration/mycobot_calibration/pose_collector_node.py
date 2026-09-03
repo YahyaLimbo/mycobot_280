@@ -90,8 +90,8 @@ class PoseCollectorNode(Node):
         # RUNNING system rather than the generated URDF:
         #
         #   ros2 run tf2_ros tf2_echo base_link camera_head_depth_optical_frame
-        self.declare_parameter('nominal_camera_position', [0.287, 0.145, 0.450])
-        self.declare_parameter('nominal_camera_rpy_deg', [-114.45, 0.0, 119.14])
+        self.declare_parameter('nominal_camera_position', [0.1666, 0.2425, 0.4330])
+        self.declare_parameter('nominal_camera_rpy_deg', [-113.97, 0.0, 162.13])
 
         # Nominal intrinsics for back-projection. Must match the URDF camera.
         self.declare_parameter('image_width', 848)
@@ -130,6 +130,23 @@ class PoseCollectorNode(Node):
         # view, which is where the board fills the frame.
         self.declare_parameter('samples_per_ray', 7)
         self.declare_parameter('min_marker_height', 0.02)
+
+        # Furthest the marker may be planned from the camera, in metres.
+        # 0 means no limit, which is right whenever the target is big enough to
+        # stay unambiguous across the whole workspace -- so it is the default,
+        # and simulation never sets it.
+        #
+        # Set it only when the printed target is too small. A planar pose has
+        # two solutions that separate through perspective foreshortening alone,
+        # so past some range SOLVEPNP_IPPE_SQUARE flips between them and the
+        # stability gate below rightly discards the pose. Capping the plan just
+        # stops the sweep spending ~9 s each on poses it will throw away.
+        #
+        # It is not free: hand-eye reads translation partly from how the
+        # target's apparent size changes with range, so a narrow distance band
+        # determines it less well. Watch distance_ratio in the coverage report,
+        # and prefer a bigger target whenever one can be printed.
+        self.declare_parameter('max_marker_distance', 0.0)
 
         # Applied about BOTH of the plate's in-plane axes, plus a roll about
         # the viewing axis. One tilt axis is not enough: the relative rotations
@@ -254,6 +271,7 @@ class PoseCollectorNode(Node):
             tilt_angles_deg=parameter('tilt_angles_deg'),
             roll_angles_deg=parameter('roll_angles_deg'),
             shuffle_seed=int(parameter('shuffle_seed')),
+            max_marker_distance=float(parameter('max_marker_distance')),
         )
 
         reachable = stats['reachable_positions']
@@ -359,51 +377,63 @@ class PoseCollectorNode(Node):
         failed_motion = 0
         failed_vision = 0
 
-        for index, T_base_marker_goal in enumerate(candidates):
-            if len(samples) >= self.max_poses:
-                break
-            attempted += 1
+        # Ctrl-C keeps whatever has been collected. A sweep is many minutes of
+        # arm motion, and until this existed an interrupt threw every sample
+        # away: write_dataset ran only after the loop, and main() caught
+        # KeyboardInterrupt just to log 'interrupted'. Stopping a run early is
+        # a normal thing to want -- the lighting is wrong, the target slipped,
+        # the coverage is clearly already enough -- and it should cost the
+        # remaining poses, not the finished ones.
+        try:
+            for index, T_base_marker_goal in enumerate(candidates):
+                if len(samples) >= self.max_poses:
+                    break
+                attempted += 1
 
-            # The planner is asked for a flange pose, not a marker pose: the
-            # marker rides on the flange through a known fixed transform, and
-            # constraining the tip link that the IK chain actually ends at
-            # avoids depending on MoveIt's tip-substitution behaviour.
-            T_base_ee_goal = T_base_marker_goal @ T_marker_ee
-            goal_pose = pose_to_msg(T_base_ee_goal, Pose())
+                # The planner is asked for a flange pose, not a marker pose: the
+                # marker rides on the flange through a known fixed transform, and
+                # constraining the tip link that the IK chain actually ends at
+                # avoids depending on MoveIt's tip-substitution behaviour.
+                T_base_ee_goal = T_base_marker_goal @ T_marker_ee
+                goal_pose = pose_to_msg(T_base_ee_goal, Pose())
 
-            reachable, reason = self.moveit.is_reachable(goal_pose)
-            if not reachable:
-                skipped_ik += 1
-                continue
+                reachable, reason = self.moveit.is_reachable(goal_pose)
+                if not reachable:
+                    skipped_ik += 1
+                    continue
 
-            ok, reason = self.moveit.move_to_pose(goal_pose)
-            if not ok:
-                failed_motion += 1
-                self.get_logger().warn(f'pose {index}: motion failed ({reason})')
-                continue
+                ok, reason = self.moveit.move_to_pose(goal_pose)
+                if not ok:
+                    failed_motion += 1
+                    self.get_logger().warn(f'pose {index}: motion failed ({reason})')
+                    continue
 
-            self.sleep_sim(self.settle_time)
+                self.sleep_sim(self.settle_time)
 
-            T_cam_target, info = self.collect_detections()
-            if T_cam_target is None:
-                failed_vision += 1
-                self.get_logger().warn(f'pose {index}: {info}')
-                continue
+                T_cam_target, info = self.collect_detections()
+                if T_cam_target is None:
+                    failed_vision += 1
+                    self.get_logger().warn(f'pose {index}: {info}')
+                    continue
 
-            # Read FK *after* the detections so both describe the same settled
-            # configuration. Reading it before would pair a pose from the tail
-            # of the motion with images taken once the arm had stopped.
-            T_base_ee = self.lookup(self.base_frame, self.ee_frame)
+                # Read FK *after* the detections so both describe the same settled
+                # configuration. Reading it before would pair a pose from the tail
+                # of the motion with images taken once the arm had stopped.
+                T_base_ee = self.lookup(self.base_frame, self.ee_frame)
 
-            samples.append({
-                'index': index,
-                'detections': info,
-                'T_base_ee': transform_to_list(T_base_ee),
-                'T_cam_target': transform_to_list(T_cam_target),
-            })
-            self.get_logger().info(
-                f'captured {len(samples)}/{self.max_poses} '
-                f'(pose {index}, {info} detections)')
+                samples.append({
+                    'index': index,
+                    'detections': info,
+                    'T_base_ee': transform_to_list(T_base_ee),
+                    'T_cam_target': transform_to_list(T_cam_target),
+                })
+                self.get_logger().info(
+                    f'captured {len(samples)}/{self.max_poses} '
+                    f'(pose {index}, {info} detections)')
+
+        except KeyboardInterrupt:
+            self.get_logger().warn(
+                f'interrupted after {len(samples)} samples; keeping them')
 
         self.write_dataset(samples, T_ee_marker)
         self.get_logger().info(

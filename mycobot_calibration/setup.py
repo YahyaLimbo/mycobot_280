@@ -42,6 +42,8 @@ setup(
             'mycobot_calibration.validate_calibration_node:main',
             'present_target = '
             'mycobot_calibration.present_target_node:main',
+            'jetbot_camera_bridge = '
+            'mycobot_calibration.jetbot_camera_bridge:main',
         ],
     },
 )

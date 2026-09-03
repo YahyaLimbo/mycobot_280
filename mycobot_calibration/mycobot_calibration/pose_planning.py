@@ -148,7 +148,8 @@ def plan_marker_poses(camera_position, camera_rpy_deg, image_width, image_height
                       workspace_centre, workspace_radius_max,
                       workspace_radius_min, samples_per_ray, min_marker_height,
                       tilt_angles_deg, roll_angles_deg, shuffle_seed,
-                      close_up_poses=6, close_up_margin_px=20.0):
+                      close_up_poses=6, close_up_margin_px=20.0,
+                      max_marker_distance=0.0):
     """Candidate marker poses, planned to tile the camera IMAGE.
 
     Each candidate starts as a position in the image and a distance rather than
@@ -165,6 +166,24 @@ def plan_marker_poses(camera_position, camera_rpy_deg, image_width, image_height
     using the inset at the farthest reachable distance in order to find where
     the ray enters and leaves the workspace, and the second re-places it using
     the inset at each distance actually sampled along that chord.
+
+    `max_marker_distance` (0 = no limit) truncates every chord at that range.
+    It exists for targets too small to stay unambiguous across the whole
+    workspace. A planar marker's pose solve has two solutions that separate
+    only through perspective foreshortening, so once the marker subtends too
+    few degrees SOLVEPNP_IPPE_SQUARE flips between them; the collector's
+    stability gate then throws the pose away. Measured on the 38 mm target
+    against this rig: rock solid out to ~0.29 m (0.17-0.45 mm of position
+    scatter), and 7-10 mm of scatter by 0.35 m -- with 174 deg of rotation
+    scatter at 0.32 m with the arm completely STATIONARY. Left uncapped, the
+    2026-09-02 sweep planned 0.154-0.41 m and threw away 43 of 48 poses at
+    ~9 s each.
+
+    Capping is strictly a throughput fix, and it costs conditioning: hand-eye
+    recovers the translation partly from how the target's apparent size changes
+    with range, so a sweep confined to a narrow distance band determines it
+    less well. `distance_ratio` in the coverage report is what to watch. A
+    bigger printed target is the better answer whenever one is available.
 
     Orientation faces the nominal camera, then takes a tilt about both of the
     plate's in-plane axes and a roll about the viewing axis. Two tilt axes
@@ -239,6 +258,11 @@ def plan_marker_poses(camera_position, camera_rpy_deg, image_width, image_height
             continue
 
         near, far = max(span[0], 1e-3), span[1]
+        if max_marker_distance > 0.0:
+            far = min(far, max_marker_distance)
+            if far <= near:
+                unreachable_positions += 1
+                continue
         accepted = 0
         # Endpoints dropped: the ray is tangent to the reachable volume there,
         # so those poses sit exactly on the boundary of what the arm can do.
@@ -256,7 +280,13 @@ def plan_marker_poses(camera_position, camera_rpy_deg, image_width, image_height
                 dropped_candidates += 1
                 continue
 
-            distance = float(np.clip(distance, max(refined[0], 1e-3), refined[1]))
+            ceiling = refined[1]
+            if max_marker_distance > 0.0:
+                ceiling = min(ceiling, max_marker_distance)
+                if ceiling <= max(refined[0], 1e-3):
+                    dropped_candidates += 1
+                    continue
+            distance = float(np.clip(distance, max(refined[0], 1e-3), ceiling))
             point_base = camera + ray * distance
             if np.linalg.norm(point_base - workspace) < workspace_radius_min:
                 dropped_candidates += 1
@@ -349,6 +379,11 @@ def plan_marker_poses(camera_position, camera_rpy_deg, image_width, image_height
                 reached = max(distance, span[0])
                 if reached > span[1]:
                     continue                 # ray misses the reachable volume
+                if 0.0 < max_marker_distance < reached:
+                    # A 'close-up' past the ambiguity limit is not a close-up
+                    # worth having: the plate is small enough there that the
+                    # pose solve flips, and the collector would discard it.
+                    continue
                 point_base = camera + ray * reached
                 if np.linalg.norm(point_base - workspace) < workspace_radius_min:
                     continue

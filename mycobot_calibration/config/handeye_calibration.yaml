@@ -1,9 +1,13 @@
 # Eye-to-hand calibration settings for the myCobot 280 simulation.
 #
 # The defaults match the calibration.world rig: camera on the fixed stand at
-# base_link + (0.287, 0.145, 0.450), looking along the arm rather than straight
-# down at it (tilt 24.45 deg, pan 119.14 deg in the URDF), ArUco target on the
-# flange.
+# base_link + (0.1666, 0.2425, 0.4330), looking along the arm rather than
+# straight down at it (tilt 23.97 deg, pan 162.13 deg in the URDF), ArUco
+# target on the flange.
+#
+# Those numbers are not arbitrary: as of 2026-09-03 the simulated camera is
+# placed at the pose MEASURED on the physical rig, so sim and hardware see the
+# same geometry from the same range.
 
 aruco_detector:
   ros__parameters:
@@ -50,34 +54,45 @@ aruco_detector:
     marker_id: 3
     # Edge length of the black marker square, NOT the white plate around it.
     # Must match generate_aruco_target.py --marker-size, and the plate it
-    # implies (1.2x this at border-ratio 0.10, so 0.1200) must match
-    # marker_size in the collector
-    # block below, which uses the plate to keep it clear of the frame border.
+    # implies (1.2x this at border-ratio 0.10, so 0.0456) must match
+    # marker_size in the collector block below, which uses the plate to keep it
+    # clear of the frame border.
     #
     # THIS MUST EQUAL THE PRINTED SQUARE. It is the one value that scales every
     # distance the detector reports, with nothing ever looking wrong: get it
     # 1% off and every translation is 1% off, permanently.
     #
-    # 0.100 REQUIRES A 100 mm PRINTED MARKER. It was raised from the measured
-    # 0.080 on 2026-09-02 to satisfy the "board covering entire image" rule:
-    # a bigger board fills more of the frame at the same camera distance, and
-    # that was preferable to moving the camera closer, which measurably hurt
-    # the calibration (see the camera-distance experiment in the README).
+    # 0.038 IS THE PHYSICAL TARGET, measured with a rule on 2026-09-02 and
+    # confirmed against the robot's own kinematics. The simulated marker now
+    # models the printed one, which is the only arrangement in which a
+    # sim-derived calibration transfers.
     #
-    # THE PRINTED TARGET MUST BE REGENERATED AND REPRINTED TO MATCH:
+    # This was 0.100 until 2026-09-02, raised from a claimed 0.080 to satisfy
+    # the "board covering entire image" rule. Both numbers were wrong about the
+    # physical target, and the cost of that showed up the moment the pipeline
+    # met real hardware: told 0.100 against a 38 mm marker, the detector
+    # reported every distance 2.63x long, and nothing failed, warned, or looked
+    # wrong anywhere.
+    #
+    # It was caught by moving the arm and comparing the marker's displacement in
+    # the camera frame against the same displacement from forward kinematics.
+    # A rigid transform preserves distances, so the two must agree. Fitting a
+    # similarity transform to five pose pairs gave scale 2.73 and cut the
+    # residual from 98 mm to 10 mm -- which no kinematic fault can do, since a
+    # wrong link length leaves structured error no single scale absorbs. With
+    # 0.038 the same fit closes to 2.0 mm RMS at scale 1.0, which is the arm's
+    # own execution error.
+    #
+    # The lesson the earlier note got right and then talked itself out of:
+    # frame coverage is bought by moving the CAMERA, never by resizing the
+    # target away from the hardware. Growing this number does make the
+    # simulated board fill the frame; it also makes the simulation a model of
+    # a target that does not exist.
+    #
+    # To change it, reprint the target AND regenerate the asset, in that order:
     #
     #   python3 scripts/generate_aruco_target.py --id 3 \
-    #       --marker-size 0.100 --border-ratio 0.10
-    #
-    # Until that is done the simulated target and the physical one are
-    # different objects, and a sim-derived calibration will not transfer.
-    #
-    # It was briefly set to 0.093 (2026-08-30/31) to make the board fill more
-    # of the frame for the "board covers the entire image" rule. That was a
-    # mistake: it made the simulated target a different object from the printed
-    # one, so a sim-derived calibration would not have transferred. Frame
-    # coverage is bought by moving the CAMERA closer, never by resizing the
-    # target away from the hardware.
+    #       --marker-size <measured> --border-ratio 0.10
     #
     # The renderer's anti-aliased edges pull refined corners inward by roughly
     # half a pixel per side, so the marker reads slightly smaller than it is
@@ -91,7 +106,7 @@ aruco_detector:
     #   0.100  ~186 px  +0.32% of range  (measured 2026-09-02 against
     #           forward kinematics over 5 close-up poses; the trend holds --
     #           the bias shrinks with marker PIXELS, not marker metres)
-    marker_size: 0.100
+    marker_size: 0.038
 
     # 'computed' derives K from the image size and camera_hfov below.
     # 'camera_info' uses the published intrinsics.
@@ -138,13 +153,45 @@ handeye_pose_collector:
     # hardware take it from CAD or a tape measure.
     # This is the CAMERA, not the stand: camera_head_joint puts the optical
     # frame 0.01 m along +Y from the stand, and camera_offset_y trims a further
-    # -0.025, so stand (0.287, 0.160, 0.450) gives the camera below.
-    nominal_camera_position: [0.287, 0.145, 0.450]
+    # -0.025, so stand (0.287, 0.160, 0.250) gives the camera below.
+    #
+    # CHANGED 2026-09-03 to the pose measured on the physical rig, so that the
+    # simulation reproduces the hardware's geometry instead of an invented one:
+    #
+    #                          base_link->cam   workspace centre->cam
+    #   sim, before              0.5531 m           0.4525 m
+    #   hardware, measured       0.5235 m           0.4212 m   <- now also sim
+    #
+    # The hardware figure is the three-dataset consensus in
+    # results/handeye_result_2026-09-03_consensus.yaml, which agreed to 14 mm.
+    #
+    # Fifteen places carry this pose and all of them had to move together --
+    # camera_stand_x/y/z, camera_tilt_deg and camera_pan_deg in BOTH launch
+    # files and the intel_rgbd_cam_d435 xacro, plus this value and its twins in
+    # pose_collector_node and present_target_node. The launch files declare
+    # their own defaults and pass them to xacro, so the launch value wins and
+    # editing only the xacro changes nothing.
+    #
+    # The stand is not the camera: camera_head_joint adds 0.01 m along +Y and
+    # camera_offset_y trims 0.025, so stand_y = camera_y + 0.015. Hence the
+    # stand sits at (0.1666, 0.2575, 0.4330) for the camera pose below.
+    #
+    # Pitch stays 0 here because the URDF expresses the aim as tilt and pan
+    # only, which fix roll and yaw; the measured hardware pitch of -2.42 deg
+    # has no representation and is dropped. It only aims the pose plan, so the
+    # cost is a fraction of a degree of coverage, never accuracy.
+    #
+    # NOT raised 0.2 m: an earlier attempt to lift the arm alone was rolled
+    # back. Worth recording why it is awkward -- the camera stand is a CHILD OF
+    # base_link, so the spawn z moves the arm and camera together and cannot
+    # separate them; raising only the arm means spawn z 0.425 -> 0.625 AND
+    # camera_stand_z lowered by the same 0.2 to hold the camera still.
+    nominal_camera_position: [0.1666, 0.2425, 0.4330]
     # Matches camera_tilt_deg:=24.45 camera_pan_deg:=119.14 in the URDF, via
     # roll = -90 - tilt and yaw = pan. If the camera aim is changed there,
     # change it here too or the image-space plan back-projects through the
     # wrong direction.
-    nominal_camera_rpy_deg: [-114.45, 0.0, 119.14]
+    nominal_camera_rpy_deg: [-113.97, 0.0, 162.13]
 
     # Nominal intrinsics for back-projection; must match the URDF camera.
     image_width: 848
@@ -201,7 +248,7 @@ handeye_pose_collector:
     edge_safety: 1.6
 
     # Overall size of the target actually fitted, since the border inset is
-    # computed from it. 0.1200 for the ArUco plate (1.2x the 0.100 black
+    # computed from it. 0.0456 for the ArUco plate (1.2x the 0.038 black
     # square, the quiet zone being 0.10 of the marker edge on every side),
     # 0.121 for the ChArUco one.
     #
@@ -213,7 +260,7 @@ handeye_pose_collector:
     # Unlike the detector's marker_size, a wrong value here does NOT corrupt
     # the calibration -- the plate is only used to keep the target clear of
     # the frame border, so an error costs coverage, never accuracy.
-    marker_size: 0.1200
+    marker_size: 0.0456
 
     # Candidates are generated distance by distance, so a fixed-seed shuffle
     # keeps a max_poses cut-off from collecting only the nearest shell.

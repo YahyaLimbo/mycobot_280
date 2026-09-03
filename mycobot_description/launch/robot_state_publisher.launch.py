@@ -95,9 +95,9 @@ ARGUMENTS = [
     # Moving the camera has to happen here rather than in the Gazebo GUI: it is
     # a link of the robot model, and robot_state_publisher publishes its TF
     # from this description, so a GUI drag would desynchronise images from TF.
-    DeclareLaunchArgument('camera_tilt_deg', default_value='24.45',
+    DeclareLaunchArgument('camera_tilt_deg', default_value='23.97',
                           description='Camera pitch, degrees below horizontal.'),
-    DeclareLaunchArgument('camera_pan_deg', default_value='119.14',
+    DeclareLaunchArgument('camera_pan_deg', default_value='162.13',
                           description='Camera yaw about base +Z, degrees.'),
     DeclareLaunchArgument('camera_offset_x', default_value='0.0',
                           description='Camera offset from the TOP OF THE STAND '
@@ -107,11 +107,11 @@ ARGUMENTS = [
                           description='Camera offset from the stand top, m.'),
     DeclareLaunchArgument('camera_offset_z', default_value='0.0',
                           description='Camera offset from the stand top, m.'),
-    DeclareLaunchArgument('camera_stand_x', default_value='0.287',
+    DeclareLaunchArgument('camera_stand_x', default_value='0.1666',
                           description='Stand position in base_link, metres.'),
-    DeclareLaunchArgument('camera_stand_y', default_value='0.160',
+    DeclareLaunchArgument('camera_stand_y', default_value='0.2575',
                           description='Stand position in base_link, metres.'),
-    DeclareLaunchArgument('camera_stand_z', default_value='0.45',
+    DeclareLaunchArgument('camera_stand_z', default_value='0.4330',
                           description='Camera height above the stand base.'),
     DeclareLaunchArgument('camera_hfov', default_value='1.5184',
                           description='Horizontal FOV in radians. Must match '

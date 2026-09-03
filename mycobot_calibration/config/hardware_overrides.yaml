@@ -1,0 +1,237 @@
+# Hardware deltas, layered OVER handeye_calibration.yaml.
+#
+# ROS 2 merges parameter files in the order they are given, so this file holds
+# only the values that differ on the physical rig and inherits everything else.
+# That is deliberate: the sim config carries a great deal of hard-won reasoning
+# in its comments, and a full copy would drift away from it silently.
+#
+#   ros2 launch mycobot_calibration handeye_calibration.launch.py \
+#       overrides_file:=<share>/config/hardware_overrides.yaml \
+#       use_sim_time:=false
+#
+# Three of the five settings below exist ONLY to undo a simulator workaround.
+# Leaving them at their simulation values does not fail -- it silently scales or
+# biases every translation the detector reports, which is the exact failure mode
+# this package keeps warning about.
+
+aruco_detector:
+  ros__parameters:
+
+    # The real camera publishes real intrinsics, so use them. 'computed' exists
+    # solely because Ignition Fortress advertises CameraInfo built from its own
+    # defaults (K for 320x240 at 60 deg) regardless of what the SDF asks for.
+    # That workaround is wrong here: it would throw away the D435's factory
+    # calibration in favour of a pinhole guess.
+    intrinsics_source: camera_info
+
+    # The D435's COLOUR field of view, 69.76 deg, measured off the device with
+    # rs-enumerate-devices. The simulation uses 1.5184 (87 deg) because that is
+    # the DEPTH FOV, which is what the simulated rgbd_camera renders.
+    #
+    # With intrinsics_source: camera_info the detector does not use this -- but
+    # the collector below does, to back-project its pose plan, so it still has
+    # to be right or the whole sweep is planned against a frustum the camera
+    # does not have.
+    camera_hfov: 1.2175
+
+    # In simulation this is the DEPTH optical frame, because Ignition renders
+    # the colour image from the sensor origin rather than from the colour lens,
+    # so stamping detections in the colour frame biased them by the 15 mm
+    # baseline. A real D435 does no such thing: the colour image genuinely comes
+    # from the colour lens, and this must name the frame the bridge stamps.
+    camera_frame: camera_head_color_optical_frame
+
+    # The black square's edge in metres, not the white plate around it.
+    #
+    # MEASURED 2026-09-02 with a rule: 38 mm. The simulated target is 100 mm, so
+    # this is the largest sim-to-hardware difference in the whole file, and it
+    # was found the hard way -- inherited as 0.100, every distance the detector
+    # reported came out 2.63x long, and nothing anywhere failed or warned.
+    #
+    # It was caught by moving the arm and comparing the marker's displacement in
+    # the camera frame against the same displacement from forward kinematics. A
+    # rigid transform preserves distances, so the two must agree; fitting a
+    # similarity transform to five pose pairs gave scale 2.73 and dropped the
+    # residual from 98 mm to 10 mm, which no kinematic fault can do. Implied
+    # size 36.6 mm, measured 38 mm.
+    #
+    # If the printed target is ever replaced, re-measure and change this FIRST.
+    #
+    # CONFIRMED 2026-09-03 by the same test: the scale-free fit returned 1.0254,
+    # implying 39.0 mm against the 38.0 mm measured with a rule. 2.5% apart is
+    # hand-measurement tolerance, so this value is sound.
+    #
+    # BUT 38 mm IS TOO SMALL FOR THE FAR HALF OF THE SWEEP. At this size the
+    # marker subtends only a few degrees once it is past ~0.3 m, and
+    # SOLVEPNP_IPPE_SQUARE's two planar solutions stop being distinguishable.
+    # Measured three independent ways:
+    #
+    #   distance   span    behaviour
+    #   0.222 m    106 px  1.49 deg rotation spread over 89 frames
+    #   0.18-0.29 m         0.17-0.45 mm position spread, 6 poses
+    #   0.32 m      72 px  174.6 deg spread with the arm completely STATIONARY
+    #   0.35 m              7-10 mm position spread, 2 poses
+    #
+    # Everything at or below ~0.29 m is rock solid; everything beyond ~0.35 m
+    # scatters. That is why the 2026-09-02 sweep rejected 43 of 48 poses as
+    # unstable: the plan spans 0.154-0.41 m, so most of it sits past the limit.
+    # The collector correctly throws those away rather than believing them, so
+    # this costs throughput and coverage, never accuracy.
+    #
+    # The proper fix is a bigger printed target. At 100 mm the same 106 px
+    # falls at 0.58 m, past the far end of the whole workspace:
+    #
+    #   python3 scripts/generate_aruco_target.py --id 3 --marker-size 0.100 \
+    #       --border-ratio 0.10
+    #
+    # then set marker_size here to 0.100 and the collector's plate to 0.120.
+    #
+    # That is NOT available on this rig -- 100 mm cannot be printed here -- so
+    # the sweep is capped instead, via max_marker_distance in the collector
+    # block below. Read that note too: the cap keeps the sweep honest and quick
+    # but narrows its range of distances, which is a real cost to the solve.
+    marker_size: 0.038
+
+handeye_pose_collector:
+  ros__parameters:
+
+    # Must match the detector block above.
+    camera_hfov: 1.2175
+
+    # Seconds to wait after move_group reports SUCCESS before sampling.
+    #
+    # 1.5 (the simulation default) is not enough on real hardware. The firmware
+    # services servo motion before it answers GET_ANGLES and keeps moving for
+    # about a second after the trajectory reports done -- see the long comment
+    # in MyCobotSystemInterface::read -- so the arm is still coasting when the
+    # collector starts sampling.
+    #
+    # MEASURED 2026-09-03. The 0.25 m-capped sweep captured 5 of 146
+    # candidates, and classifying its 77 unstable poses by HOW they failed
+    # separates the two causes cleanly:
+    #
+    #   translation only :  0
+    #   rotation only    : 10   <- planar ambiguity: the two solutions share a
+    #                              translation and differ only in rotation
+    #   BOTH             : 67   <- a moving arm, which moves both
+    #
+    # So settling, not ambiguity, was 87% of the loss. Bucketing detections
+    # into one-second windows after SUCCESS showed one pose still noisy 4 s
+    # later, while a separate tilt sweep that settled 2.5 s before sampling
+    # passed at every angle (0.25-1.25 mm, 0.08-0.91 deg) at these same ranges.
+    #
+    # 3.5 s costs about 2 s per candidate. That is cheap against a rejected
+    # pose, which costs the full ~9 s and yields nothing.
+    settle_time: 3.5
+
+    # WHERE THE CAMERA ROUGHLY IS, in base_link metres and degrees.
+    #
+    # Used ONLY to aim the pose plan, never in the solve -- recovering the true
+    # value is the entire point -- so an error here costs coverage, not
+    # accuracy. A badly wrong guess still wastes a sweep, because the plan is
+    # generated in image space and back-projects through this pose.
+    #
+    # MEASURED, not guessed. These come from fitting a rigid transform to
+    # (forward-kinematics, camera) marker-position pairs collected by moving the
+    # arm -- effectively a crude hand-eye solve, which is all this parameter
+    # needs to be. Residual is the arm's own execution error, so a few mm means
+    # the geometry is consistent.
+    #
+    # Re-derived 2026-09-03 after the rig was nudged while the myCobot's USB was
+    # plugged in (the marker moved 22 mm between two captures 8 minutes apart,
+    # which is why this is re-run whenever anything is touched). Six usable
+    # poses spanning 50 x 125 x 50 mm, 3.47 mm RMS residual with scale fixed
+    # at 1. The scale-free fit returned 1.0254, implying a 39.0 mm marker
+    # against the 38.0 mm measured with a rule -- 2.5% apart, which is hand
+    # measurement tolerance, so marker_size above is sound.
+    #
+    # HOW TO RE-DERIVE, because the obvious way does not work. Do NOT ask for
+    # Cartesian marker positions and let IK find the joints: from the arm's
+    # rest posture (all joints within ~5 deg of zero) it stands fully extended
+    # and vertical, which is a wrist singularity. KDL will not converge there,
+    # so /compute_ik returns NO_IK_SOLUTION even for the pose the arm is
+    # ALREADY holding to within 8 degrees, and OMPL reports 'Unable to sample
+    # any valid states for goal tree'. Search JOINT space instead and use
+    # /compute_fk to predict where each candidate puts the marker; joint-space
+    # goals execute cleanly from the same posture.
+    #
+    # Re-derive these whenever the camera is moved. They only aim the pose plan
+    # and never enter the solve, so an error costs coverage rather than
+    # accuracy; but a badly wrong guess plans the sweep against the wrong part
+    # of the frame and wastes it.
+    # SUPERSEDED 2026-09-03 by the hand-eye solve itself. The five-pose fit
+    # above gave [0.107, 0.271, 0.435] / [-107.85, -1.72, 175.17], and two
+    # independent 40-sample sweeps both put the camera 69 mm away from that:
+    #
+    #   five-pose fit      [0.107, 0.271, 0.435]
+    #   hw2  (40 samples)  [0.166, 0.235, 0.432]
+    #   demo (40 samples)  [0.180, 0.233, 0.432]
+    #
+    # The two sweeps agree with each other to 14 mm and disagree with the fit
+    # by 69 mm, so the fit is the odd one out. Its orientation was 17.6 deg off,
+    # and 17.6 deg applied at the 0.25 m marker range displaces the camera
+    # origin by 75 mm -- which is the whole discrepancy.
+    #
+    # WHY THE FIT WAS WRONG DESPITE A 3.47 mm RESIDUAL. It used marker
+    # POSITIONS only, deliberately, because positions survive the planar
+    # ambiguity that corrupts rotations. But six points spanning 125 mm in Y
+    # and only 50 mm in X and Z leave rotation about the short axes weakly
+    # determined, and t = mean_base - R . mean_cam carries any rotation error
+    # straight into the translation, amplified by |mean_cam|. A low residual
+    # proved the six points were mutually consistent; it never proved the
+    # transform was right. If that fit is ever re-run, spread the points far
+    # more evenly across all three axes, and treat its orientation as a rough
+    # starting guess rather than a measurement.
+    nominal_camera_position: [0.170, 0.234, 0.432]
+    nominal_camera_rpy_deg: [-113.10, -3.20, 158.90]
+
+    # Do not plan poses further than this from the camera, in metres.
+    #
+    # The 38 mm target cannot be replaced on this rig, and 38 mm stops being
+    # unambiguous partway across the workspace -- see the note under
+    # marker_size above.
+    #
+    # SET FROM THE ROTATION, NOT THE POSITION. Those two fail at different
+    # ranges, and the collector gates on both, so the position numbers alone
+    # give a cap that is too generous. Measured 2026-09-03 with the arm
+    # STATIONARY, using the same transform_spread the collector gates on:
+    #
+    #   0.186 m   PASS
+    #   0.217 m   0.25 mm   0.91 deg   PASS
+    #   0.240 m   1.25 mm   0.35 deg   PASS
+    #   0.287 m   0.98 mm   20.8-32.4 deg  FAIL, for 8 s straight
+    #   0.331 m   flips between 0.13 and 24 deg
+    #
+    # Translation is still sub-millimetre at 0.287 m where rotation has already
+    # collapsed -- which is the signature of the planar ambiguity rather than a
+    # moving arm, since the two solutions share a translation and differ in
+    # rotation. A cap picked from position data alone was 0.30 and still let
+    # every pose fail.
+    #
+    # Tilt does NOT help here, which was worth checking because a face-on plate
+    # is the classic ambiguous case. Stepping J5 through 0-40 deg at ~0.22 m
+    # passed at every angle including 0 (0.25 mm / 0.91 deg), and 50 deg lost
+    # detection outright. At this range the marker is unambiguous whatever its
+    # tilt; past it, no tilt rescues it. So do not bother removing 0 from
+    # tilt_angles_deg -- range is the whole story.
+    #
+    # Simulation leaves this at 0 (no limit) because the simulated target is
+    # large enough not to need it.
+    #
+    # This buys throughput, not accuracy: uncapped, the collector still refuses
+    # the ambiguous poses, it just wastes ~9 s discovering each one. The real
+    # cost is conditioning -- capping narrows the range of distances the sweep
+    # sees, and hand-eye reads translation partly from how the target's
+    # apparent size changes with range. At 0.25 the plan spans 0.177-0.250 m,
+    # a ratio of 1.41 against the MIN_DISTANCE_RATIO of 1.3 it is checked
+    # against, so this is close to the tightest cap that still passes. Check
+    # distance_ratio in the coverage report before trusting the solve, and
+    # raise this the moment a bigger target can be printed.
+    max_marker_distance: 0.25
+
+    # The plate's overall edge, used only to keep the target clear of the frame
+    # border. 1.2x the 38 mm black square, assuming the printed target carries
+    # the same 0.10 border ratio the generator uses -- worth measuring the white
+    # plate too and correcting, though unlike the detector's marker_size an
+    # error here costs coverage, never accuracy.
+    marker_size: 0.0456

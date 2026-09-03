@@ -112,8 +112,8 @@
     geometry, so it cannot see self-occlusion and will happily recommend an aim
     that does not detect. Trust a detection over the coverage score.
   -->
-  <xacro:arg name="camera_tilt_deg" default="24.45"/>
-  <xacro:arg name="camera_pan_deg" default="119.14"/>
+  <xacro:arg name="camera_tilt_deg" default="23.97"/>
+  <xacro:arg name="camera_pan_deg" default="162.13"/>
 
   <!--
     Where the stand is, in base_link. Exposed so the camera can be moved
@@ -175,9 +175,25 @@
   <xacro:arg name="camera_offset_y" default="-0.025"/>
   <xacro:arg name="camera_offset_z" default="0.0"/>
 
-  <xacro:arg name="camera_stand_x" default="0.287"/>
-  <xacro:arg name="camera_stand_y" default="0.160"/>
-  <xacro:arg name="camera_stand_z" default="0.45"/>
+  <xacro:arg name="camera_stand_x" default="0.1666"/>
+  <xacro:arg name="camera_stand_y" default="0.2575"/>
+  <xacro:arg name="camera_stand_z" default="0.4330"/>
+  <!-- How far BELOW base_link the stand's foot reaches, in metres.
+
+       The stand hangs off base_link, so its foot sits at base_link's height
+       and rests on the table only while base_link is exactly level with the
+       table top. It is not, so without this the stand floats or sinks.
+
+       Keep it equal to (spawn z - 0.425). NEGATIVE is legal and currently
+       correct: at spawn z 0.410 the foot must reach UP 0.015 to meet the
+       table. The arithmetic works either way: the pole runs from minus drop
+       up to camera_stand_z, so it spans 0.015 to 0.4330 here.
+
+       This extends the foot downwards ONLY. The camera stays at
+       camera_stand_z above base_link, which is the pose measured on the
+       physical rig and the only geometry the calibration sees, so changing
+       this is purely cosmetic. -->
+  <xacro:arg name="camera_stand_drop" default="0.035"/>
 
   <xacro:if value="${'true' == '$(arg use_camera)' and 'true' == '$(arg use_gazebo)'}">
 
@@ -201,16 +217,16 @@
         <inertia ixx="0.8" ixy="0.0" ixz="0.0" iyy="0.8" iyz="0.0" izz="0.8" />
       </inertial>
       <visual name="holder">
-        <origin xyz="0 0 ${$(arg camera_stand_z)/2}" rpy="0 0 0" />
+        <origin xyz="0 0 ${($(arg camera_stand_z) - $(arg camera_stand_drop))/2}" rpy="0 0 0" />
         <material name="LightGrey">
           <color rgba="0.7 0.7 0.7 1.0"/>
         </material>
         <geometry>
-          <cylinder radius="0.005" length="$(arg camera_stand_z)"/>
+          <cylinder radius="0.005" length="${$(arg camera_stand_z) + $(arg camera_stand_drop)}"/>
         </geometry>
       </visual>
       <visual name="base">
-        <origin xyz="0 0 0.03" rpy="0 0 0" />
+        <origin xyz="0 0 ${0.03 - $(arg camera_stand_drop)}" rpy="0 0 0" />
         <material name="LightGrey">
           <color rgba="0.7 0.7 0.7 1.0"/>
         </material>
@@ -219,13 +235,13 @@
         </geometry>
       </visual>
       <collision name="holder">
-        <origin xyz="0 0 ${$(arg camera_stand_z)/2}" rpy="0 0 0" />
+        <origin xyz="0 0 ${($(arg camera_stand_z) - $(arg camera_stand_drop))/2}" rpy="0 0 0" />
         <geometry>
-          <cylinder radius="0.005" length="$(arg camera_stand_z)"/>
+          <cylinder radius="0.005" length="${$(arg camera_stand_z) + $(arg camera_stand_drop)}"/>
         </geometry>
       </collision>
       <collision name="base">
-        <origin xyz="0 0 0.03" rpy="0 0 0" />
+        <origin xyz="0 0 ${0.03 - $(arg camera_stand_drop)}" rpy="0 0 0" />
         <geometry>
           <box size="0.15 0.10 0.06" />
         </geometry>

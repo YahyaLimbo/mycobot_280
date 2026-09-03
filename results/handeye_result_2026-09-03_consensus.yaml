@@ -1,0 +1,74 @@
+# Eye-to-hand calibration: pose of the camera's COLOUR optical frame in
+# base_link. Consensus of three independent 40-sample hardware sweeps.
+#
+# NOT produced by handeye_solver's default path, and deliberately so. Solving
+# any of these datasets whole gives 13-235 mm of residual and up to 74 deg,
+# with the five OpenCV methods disagreeing by 155-594 mm on camera position.
+#
+# WHAT IS ACTUALLY WRONG WITH THE DATA. Sweeping hw2's subset size from 40 down
+# to 8, dropping the worst-agreeing sample each step:
+#
+#   n=40  13.15 mm  8.11 deg   [0.163 0.231 0.432]
+#   n=39  10.65 mm  6.55 deg   [0.164 0.231 0.431]
+#   n=38   6.93 mm  4.08 deg   [0.165 0.231 0.431]   <- knee
+#   n=30   4.55 mm  2.45 deg   [0.167 0.237 0.432]
+#   n=20   3.44 mm  1.70 deg   [0.170 0.243 0.431]
+#   n=12   3.22 mm  1.06 deg   [0.165 0.247 0.429]
+#   n=8    3.62 mm  0.68 deg   [0.164 0.248 0.427]   <- stops improving
+#
+# There is ONE knee, at 38. Two samples carry over half the total error; the
+# other 38 are merely noisy, and no second knee marks a larger bad population.
+# An earlier reading of this claimed ~70% of each dataset was on the wrong
+# branch of the planar ambiguity. That was wrong: it came from minimising
+# translation RMS over subset size, and that score falls automatically as the
+# subset shrinks, so its minimum is not a count of good samples.
+#
+# The reassuring quantity is the right-hand column. Camera position moves about
+# 10 mm across the WHOLE range from 40 samples to 8, so the answer barely
+# depends on how hard the data is filtered -- much stronger evidence than any
+# single residual.
+#
+# Still note what the collector cannot catch: it gates each pose on the spread
+# of 8 consecutive detections OF THAT POSE, so a marker that locks onto the
+# wrong SOLVEPNP_IPPE_SQUARE solution and holds it passes perfectly while
+# sitting tens of degrees from what other poses imply. That is what samples 22
+# and 23 are. Only cross-sample agreement finds them.
+#
+# The three datasets, each cut at its own knee and averaged:
+#
+#   dataset  trans_rms  rot_rms   position
+#   hw2        3.22 mm  1.06 deg  [0.165, 0.247, 0.429]
+#   demo       2.70 mm  1.05 deg  [0.163, 0.241, 0.436]
+#   hw3        6.34 mm  1.46 deg  [0.172, 0.239, 0.433]
+#
+# They agree to 14.3 mm and 5.9 deg. Treat that as the uncertainty: good enough
+# to aim a pose plan or reach for an object of reasonable size, NOT good enough
+# for precision work. The honest fix is a marker larger than 38 mm, which this
+# rig cannot mount.
+#
+# frame name: the detector stamps camera_head_color_optical_frame on hardware.
+# handeye_solver.py hardcodes camera_head_depth_optical_frame in write_result,
+# so any YAML it generated for this rig is mislabelled. This file is not.
+
+handeye_calibration:
+  parent_frame: base_link
+  child_frame: camera_head_color_optical_frame
+  method: PARK, robust subset, averaged over 3 datasets
+  samples: 36 of 120 (12 + 10 + 14)
+  transform:
+    translation:
+      x: 0.166600
+      y: 0.242500
+      z: 0.433000
+    rotation:
+      x: 0.118869
+      y: 0.829960
+      z: -0.535368
+      w: -0.102068
+    rpy_deg:
+      roll: -113.97
+      pitch: -2.42
+      yaw: 162.13
+  agreement_across_datasets:
+    translation_mm: 14.3
+    rotation_deg: 5.9

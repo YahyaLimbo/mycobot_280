@@ -67,7 +67,7 @@ def generate_launch_description():
         DeclareLaunchArgument('robot_base_y', default_value='0.0',
                               description='base_link Y in Gazebo world '
                                           'coordinates.'),
-        DeclareLaunchArgument('robot_base_z', default_value='0.425',
+        DeclareLaunchArgument('robot_base_z', default_value='0.460',
                               description='Height of base_link in Gazebo world '
                                           'coordinates, i.e. the calibration '
                                           'table top.'),
@@ -87,6 +87,12 @@ def generate_launch_description():
                                           'launch\'s own RViz already carries '
                                           'that view; this is for the '
                                           'use_rviz:=false path.'),
+        DeclareLaunchArgument('use_sim_time', default_value='true',
+                              description='Take time from /clock. Leave true '
+                                          'for Gazebo; set false against the '
+                                          'physical arm, where no /clock is '
+                                          'published and the nodes would '
+                                          'otherwise sit frozen at time zero.'),
     ]
 
     def launch_setup(context):
@@ -97,6 +103,7 @@ def generate_launch_description():
             return LaunchConfiguration(name).perform(context)
 
         world = value('world_name')
+        sim_time = value('use_sim_time').lower() == 'true'
         base_x = float(value('robot_base_x'))
         base_y = float(value('robot_base_y'))
         base_z = float(value('robot_base_z'))
@@ -155,7 +162,7 @@ def generate_launch_description():
             name='aruco_object_detector',
             output='screen',
             parameters=[{
-                'use_sim_time': True,
+                'use_sim_time': sim_time,
                 'marker_id': int(value('marker_id')),
                 'marker_size': float(value('marker_size')),
                 'camera_frame': 'camera_head_depth_optical_frame',
@@ -179,7 +186,7 @@ def generate_launch_description():
             name='validate_calibration',
             output='screen',
             parameters=[{
-                'use_sim_time': True,
+                'use_sim_time': sim_time,
                 'result_file': value('result_file'),
                 'object_xyz': [float(value('object_x')),
                                float(value('object_y')),
@@ -201,7 +208,7 @@ def generate_launch_description():
                 arguments=['-d', os.path.join(
                     get_package_share_directory('mycobot_calibration'),
                     'rviz', 'validate_calibration.rviz')],
-                parameters=[{'use_sim_time': True}],
+                parameters=[{'use_sim_time': sim_time}],
             ))
 
         # The validator is one-shot; without this the detector would hold the

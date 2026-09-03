@@ -64,16 +64,24 @@ class PresentTargetNode(Node):
         # Same nominal camera the collector plans against, and for the same
         # reason: this only decides where to point the plate, so an error
         # costs a nice picture, never accuracy.
-        self.declare_parameter('nominal_camera_position', [0.287, 0.145, 0.450])
-        self.declare_parameter('nominal_camera_rpy_deg', [-114.45, 0.0, 119.14])
+        self.declare_parameter('nominal_camera_position', [0.1666, 0.2425, 0.4330])
+        self.declare_parameter('nominal_camera_rpy_deg', [-113.97, 0.0, 162.13])
 
         self.declare_parameter('image_width', 848)
         self.declare_parameter('image_height', 480)
         self.declare_parameter('camera_hfov', 1.5184)
 
         # The whole plate, as elsewhere -- this is about its footprint in the
-        # image, not about the black square the detector measures.
-        self.declare_parameter('marker_size', 0.0960)
+        # image, not about the black square the detector measures. 1.2x the
+        # 0.038 m marker, matching marker_size in the collector block of
+        # config/handeye_calibration.yaml and the generated mesh.
+        #
+        # This sat at 0.0960 (1.2x an 0.080 m marker) through two changes of
+        # target and was only noticed when it reported the plate spanning 197 px
+        # where the geometry gives 94. It is presentation only, so a stale value
+        # never corrupted anything -- it just aimed the plate at the wrong
+        # distance and then misreported the result.
+        self.declare_parameter('marker_size', 0.0456)
         # Offset of the plate from the flange, along the flange's +Z. Must
         # match aruco_marker_xyz in the target xacro.
         self.declare_parameter('marker_offset_z', 0.012)

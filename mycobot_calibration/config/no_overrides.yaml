@@ -1,0 +1,16 @@
+# Default for the launch's overrides_file argument: deliberately empty.
+#
+# The detector and collector take their parameters from handeye_calibration.yaml
+# with a second file layered on top, so that hardware can change the handful of
+# values that differ without duplicating a long, heavily annotated config and
+# letting the two drift apart.
+#
+# In simulation there is nothing to override, and launch has no clean way to
+# pass "no file at all" in Humble without wrapping the whole description in an
+# OpaqueFunction -- which this package already found to misbehave here (see the
+# notes in mycobot_gazebo/launch/mycobot_combined.launch.py). An explicit no-op
+# file is simpler and fails visibly if it ever goes missing.
+#
+# For hardware, pass config/hardware_overrides.yaml instead.
+/**:
+  ros__parameters: {}

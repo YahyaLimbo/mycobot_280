@@ -101,7 +101,8 @@ echo "ok"
 banner "Step 1/4  --  calibration target on the end effector"
 cat <<'EOF'
 
-  The ArUco target (DICT_6X6_250 id 3, 55 mm) is mounted on the flange and
+  The ArUco target (DICT_6X6_250 id 3, 38 mm black square on a 45.6 mm
+  plate) is mounted on the flange and
   faces along the tool approach axis, so it points wherever the tool points.
   It is part of the robot description, enabled with use_aruco_marker:=true.
 
